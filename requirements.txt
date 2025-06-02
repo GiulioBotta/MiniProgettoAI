@@ -1,23 +1,15 @@
-# Core scientific computing
-numpy>=1.21.0,<1.25.0
+# Librerie essenziali per il progetto
+numpy>=1.21.0
 matplotlib>=3.5.0
 pandas>=1.3.0
-seaborn>=0.11.0
-
-# Machine Learning
 scikit-learn>=1.0.0
-scipy>=1.7.0
 
-# Deep Learning
-tensorflow>=2.8.0,<2.15.0
-torch>=1.12.0
-torchvision>=0.13.0
+# Deep Learning (opzionale ma raccomandato)
+tensorflow>=2.8.0
 
-# Jupyter ecosystem
-ipykernel>=6.0.0
-jupyterlab>=3.0.0
+# Jupyter per notebook
+jupyter>=1.0.0
 jupytext>=1.13.0
 
-# Additional utilities
+# Utility
 tqdm>=4.62.0
-pillow>=8.3.0

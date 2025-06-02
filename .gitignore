@@ -4,28 +4,37 @@ env/
 
 # Cache Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
+*.pyc
+*.pyo
+*.pyd
+.Python
 
 # Jupyter
 .ipynb_checkpoints/
-*/.ipynb_checkpoints/*
+*.ipynb_checkpoints
 
 # Dataset (se grandi)
-data/MNIST/
-data/FashionMNIST/
+data/
+*.h5
+*.hdf5
 
-# Output temporanei
+# Output e log
 *.log
-*.tmp
+*.out
+results/
+outputs/
 
-# macOS
+# Sistema operativo
 .DS_Store
+Thumbs.db
 
-# VSCode
-.vscode/settings.json.bak
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Risultati intermedi
-results/temp/
-images/temp/
+# Backup
+*~
+*.bak
+*.backup
