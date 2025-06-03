@@ -53,14 +53,11 @@ from tensorflow.keras.callbacks import EarlyStopping
 
 # PyTorch per dataset loading (seguendo Lab 3)
 from torchvision.datasets import MNIST
-#import torchvision.transforms as transforms
 
 # Configurazione per riproducibilità
 np.random.seed(42)
 tf.random.set_seed(42)
 tf.get_logger().setLevel('ERROR')
-plt.rcParams['figure.figsize'] = (15, 10)
-plt.rcParams['font.size'] = 10
 
 print("Setup completato")
 
@@ -69,30 +66,26 @@ print("Setup completato")
 ---
 # PUNTO A: Analisi Architetturale [2 punti]
 
-**Obiettivo**: Analizzare sistematicamente come cambia la prestazione dei modelli 
-(MLP e CNN) al variare del numero di neuroni, strati nascosti e altri iper-parametri 
-significativi.
+**Obiettivo**: Analizzare come cambia la prestazione dei modelli (MLP e CNN) al variare 
+del numero di neuroni, strati nascosti e altri iper-parametri significativi.
 
-## Metodologia Sistematica
+## Metodologia
 
-Seguendo l'approccio rigoroso dei laboratori, implementeremo:
+Seguendo l'approccio dei laboratori, implementeremo un set di esperimenti mirati per:
 
-**Per MLP (36 esperimenti):**
-- Neuroni per strato: 50, 100, 250
-- Numero strati: 1 vs 2 strati nascosti  
-- Solver: SGD vs Adam
-- Learning rate: 0.001, 0.01, 0.1
+**MLP (9 esperimenti):**
+- Variazione numero neuroni: 50, 100, 250
+- Effetto profondità: 1 vs 2 strati nascosti
+- Confronto solver: SGD vs Adam  
+- Impatto learning rate: 0.001, 0.01, 0.1
 
-**Per CNN (24 esperimenti):**
-- Filtri: 16, 32, 64
-- Architettura: baseline vs extended
-- Learning rate: 0.001, 0.01
-- Optimizer: Adam vs SGD
+**CNN (8 esperimenti):**
+- Variazione filtri: 16, 32, 64
+- Confronto architetture: baseline vs extended
+- Effetto optimizer: Adam vs SGD
+- Variazione learning rate: 0.001 vs 0.01
 
-**Totale: 60 esperimenti sistematici**
-
-L'approccio garantisce confronto equo e bilanciato tra le architetture, 
-estendendo la metodologia del Lab 2 anche alle CNN.
+**Totale: 17 esperimenti sistematici**
 """
 
 # %%
@@ -100,8 +93,8 @@ estendendo la metodologia del Lab 2 anche alle CNN.
 print("Caricamento dataset MNIST...")
 
 # Caricamento tramite TorchVision (metodo Lab 3)
-mnist_tr = MNIST(root="./data", train=True, download=True, transform=transforms.ToTensor())
-mnist_te = MNIST(root="./data", train=False, download=True, transform=transforms.ToTensor())
+mnist_tr = MNIST(root="./data", train=True, download=True)
+mnist_te = MNIST(root="./data", train=False, download=True)
 
 # Conversione a numpy arrays
 x_train = mnist_tr.data.numpy()
@@ -129,7 +122,7 @@ print(f"  CNN: {x_train_cnn.shape} -> {x_test_cnn.shape}")
 # %%
 # Visualizzazione esempi del dataset
 fig, axes = plt.subplots(2, 5, figsize=(12, 6))
-fig.suptitle('Dataset MNIST - Esempi per Cifra', fontsize=14, fontweight='bold')
+fig.suptitle('Dataset MNIST - Esempi per Cifra', fontsize=14)
 
 for digit in range(10):
     # Trova primo esempio di ogni cifra
@@ -137,209 +130,147 @@ for digit in range(10):
     
     ax = axes[digit//5, digit%5]
     ax.imshow(x_train[idx], cmap='gray')
-    ax.set_title(f'Cifra {digit}', fontsize=12)
+    ax.set_title(f'Cifra {digit}')
     ax.axis('off')
 
 plt.tight_layout()
 plt.show()
 
 # Statistiche dataset
-print(f"\nStatistiche Dataset:")
+print(f"Statistiche Dataset:")
 print(f"Forma immagini: {x_train.shape[1:]} pixels")
 print(f"Range valori: [{x_train.min()}, {x_train.max()}]") 
 print(f"Classi: {len(np.unique(y_train))} cifre")
-print(f"Distribuzione classi (train):")
-
-class_counts = np.bincount(y_train)
-for digit, count in enumerate(class_counts):
-    print(f"  Cifra {digit}: {count:5d} esempi ({count/len(y_train)*100:.1f}%)")
 
 # %% [markdown]
 """
 ## Configurazione Esperimenti MLP
 
-Implementazione sistematica seguendo metodologia Lab 2, con estensione 
-a parametri aggiuntivi per analisi completa.
-
-**Razionale delle scelte:**
-- **Neuroni**: 50, 100, 250 → range piccolo/medio/grande
-- **Strati**: 1 vs 2 → analisi profondità vs overfitting  
-- **Solver**: SGD vs Adam → confronto algoritmi ottimizzazione
-- **Learning Rate**: 0.001, 0.01, 0.1 → ordini di grandezza diversi
-
-**Parametri fissi ottimizzati:**
-- Early stopping per efficienza e prevenzione overfitting
-- Validation split 10% per monitoring
-- Tolerance 0.001 (standard sklearn)
+Definizione di 9 configurazioni selezionate per testare sistematicamente 
+gli effetti dei principali iper-parametri.
 """
 
 # %%
 # Configurazione esperimenti MLP
 print("=== CONFIGURAZIONE ESPERIMENTI MLP ===")
 
-mlp_configs = []
+# Configurazioni selezionate (9 esperimenti)
+mlp_configs = [
+    # Variazione numero neuroni (baseline: 1 strato, adam, lr=0.01)
+    {'name': 'MLP_50n_1l_adam_lr0.01', 'hidden_layer_sizes': (50,), 'solver': 'adam', 'learning_rate_init': 0.01},
+    {'name': 'MLP_100n_1l_adam_lr0.01', 'hidden_layer_sizes': (100,), 'solver': 'adam', 'learning_rate_init': 0.01},
+    {'name': 'MLP_250n_1l_adam_lr0.01', 'hidden_layer_sizes': (250,), 'solver': 'adam', 'learning_rate_init': 0.01},
+    
+    # Effetto profondità (2 strati)
+    {'name': 'MLP_50n_2l_adam_lr0.01', 'hidden_layer_sizes': (50, 50), 'solver': 'adam', 'learning_rate_init': 0.01},
+    {'name': 'MLP_100n_2l_adam_lr0.01', 'hidden_layer_sizes': (100, 100), 'solver': 'adam', 'learning_rate_init': 0.01},
+    {'name': 'MLP_250n_2l_adam_lr0.01', 'hidden_layer_sizes': (250, 250), 'solver': 'adam', 'learning_rate_init': 0.01},
+    
+    # Effetto solver
+    {'name': 'MLP_100n_1l_sgd_lr0.01', 'hidden_layer_sizes': (100,), 'solver': 'sgd', 'learning_rate_init': 0.01},
+    
+    # Effetto learning rate
+    {'name': 'MLP_100n_1l_adam_lr0.001', 'hidden_layer_sizes': (100,), 'solver': 'adam', 'learning_rate_init': 0.001},
+    {'name': 'MLP_100n_1l_adam_lr0.1', 'hidden_layer_sizes': (100,), 'solver': 'adam', 'learning_rate_init': 0.1},
+]
 
-# Parametri da testare sistematicamente
-neurons_options = [50, 100, 250]          # 3 opzioni
-layers_options = [1, 2]                   # 2 opzioni  
-solvers = ['sgd', 'adam']                 # 2 opzioni
-learning_rates = [0.001, 0.01, 0.1]      # 3 opzioni
+# Aggiunta parametri fissi comuni
+for config in mlp_configs:
+    config.update({
+        'max_iter': 200,
+        'early_stopping': True,
+        'validation_fraction': 0.1,
+        'n_iter_no_change': 15,
+        'tol': 0.001,
+        'random_state': 42
+    })
 
-# Generazione configurazioni (3×2×2×3 = 36 esperimenti)
-for neurons in neurons_options:
-    for n_layers in layers_options:
-        for solver in solvers:
-            for lr in learning_rates:
-                
-                # Definizione architettura nascosta
-                if n_layers == 1:
-                    hidden_layers = (neurons,)
-                else:  # n_layers == 2
-                    hidden_layers = (neurons, neurons)
-                
-                # Configurazione completa
-                config = {
-                    'name': f'MLP_{neurons}n_{n_layers}l_{solver}_lr{lr}',
-                    'hidden_layer_sizes': hidden_layers,
-                    'solver': solver,
-                    'learning_rate_init': lr,
-                    'max_iter': 200,
-                    'early_stopping': True,
-                    'validation_fraction': 0.1,
-                    'n_iter_no_change': 15,  # Patience generosa
-                    'tol': 0.001,
-                    'random_state': 42
-                }
-                mlp_configs.append(config)
-
-print(f"Configurazioni MLP generate: {len(mlp_configs)}")
-print(f"Struttura: {len(neurons_options)} neuroni × {len(layers_options)} strati × {len(solvers)} solver × {len(learning_rates)} LR")
-
-# Anteprima configurazioni
-print(f"\nPrime 3 configurazioni:")
-for i, config in enumerate(mlp_configs[:3]):
+print(f"Configurazioni MLP: {len(mlp_configs)}")
+for i, config in enumerate(mlp_configs):
     print(f"  {i+1}. {config['name']}")
-    print(f"     Architettura: {config['hidden_layer_sizes']}")
-    print(f"     Solver: {config['solver']}, LR: {config['learning_rate_init']}")
-
-# %% [markdown]
-"""
-## Esecuzione Esperimenti MLP
-
-Training sistematico di tutte le 36 configurazioni con monitoring 
-delle performance e visualizzazione dei risultati.
-
-**Metriche monitorate:**
-- Accuratezza training e test
-- Tempo di training
-- Numero iterazioni per convergenza  
-- Curve di loss (quando disponibili)
-"""
 
 # %%
 # Esecuzione esperimenti MLP
 print("=== ESECUZIONE ESPERIMENTI MLP ===")
-print(f"Avvio training di {len(mlp_configs)} configurazioni...")
 
 mlp_results = []
-start_total = time.time()
+start_time = time.time()
 
 for i, config in enumerate(mlp_configs):
-    config_name = config['name']
-    print(f"\n[{i+1:2d}/{len(mlp_configs)}] Training {config_name}...")
+    print(f"[{i+1}/{len(mlp_configs)}] Training {config['name']}...")
     
-    start_time = time.time()
-    
-    # Creazione modello con parametri dalla configurazione
+    # Estrazione parametri per MLPClassifier
     model_params = {k: v for k, v in config.items() if k != 'name'}
-    mlp = MLPClassifier(**model_params)
     
     # Training
+    mlp = MLPClassifier(**model_params)
     mlp.fit(x_train_mlp, y_train)
     
-    # Valutazione performance
+    # Valutazione
     train_acc = mlp.score(x_train_mlp, y_train)
-    test_acc = mlp.score(x_test_mlp, y_test) 
-    training_time = time.time() - start_time
+    test_acc = mlp.score(x_test_mlp, y_test)
     
-    # Raccolta risultati
+    # Salvataggio risultati
     result = {
-        'name': config_name,
-        'model': mlp,
-        'config': config,
+        'name': config['name'],
         'train_accuracy': train_acc,
         'test_accuracy': test_acc,
         'overfitting': train_acc - test_acc,
-        'training_time': training_time,
         'n_iterations': mlp.n_iter_,
-        'converged': mlp.n_iter_ < config['max_iter'],
-        'loss_curve': mlp.loss_curve_ if hasattr(mlp, 'loss_curve_') else None
+        'loss_curve': mlp.loss_curve_ if hasattr(mlp, 'loss_curve_') else None,
+        'model': mlp
     }
     
     mlp_results.append(result)
-    
-    # Progress report
-    print(f"  ✅ Test Acc: {test_acc:.4f} | Train Acc: {train_acc:.4f} | Overfitting: {train_acc-test_acc:+.4f}")
-    print(f"     Tempo: {training_time:5.1f}s | Iterazioni: {mlp.n_iter_:3d} | Converged: {'✓' if result['converged'] else '✗'}")
+    print(f"  Test Acc: {test_acc:.4f}, Train Acc: {train_acc:.4f}, Overfitting: {train_acc-test_acc:+.4f}")
 
-total_time = time.time() - start_total
-print(f"\n✅ MLP Esperimenti completati!")
-print(f"   Tempo totale: {total_time:.1f}s ({total_time/60:.1f}min)")
-print(f"   Modelli: {len(mlp_results)}/{len(mlp_configs)}")
-print(f"   Tempo medio per esperimento: {total_time/len(mlp_configs):.1f}s")
+total_time = time.time() - start_time
+print(f"MLP esperimenti completati in {total_time:.1f}s")
 
 # %% [markdown]
 """
 ## Configurazione Esperimenti CNN
 
-Estensione dell'approccio sistematico alle architetture convoluzionali,
-seguendo la metodologia del Lab 3 con variazioni strutturate.
-
-**Razionale delle scelte:**
-- **Filtri**: 16, 32, 64 → da sotto-baseline a over-baseline Lab 3
-- **Architettura**: baseline (Lab 3) vs extended (più profonda)
-- **Learning Rate**: 0.001, 0.01 → range conservativo per CNN
-- **Optimizer**: Adam vs SGD → stessa logica MLP per confrontabilità
-
-**Architetture definite:**
-- **Baseline**: Conv2D + Flatten + Dense (replica Lab 3)
-- **Extended**: Conv2D + MaxPooling + Conv2D + Flatten + Dense
+Definizione di 8 configurazioni per testare l'effetto dei parametri principali 
+nelle architetture convoluzionali.
 """
 
 # %%
 # Configurazione esperimenti CNN
 print("=== CONFIGURAZIONE ESPERIMENTI CNN ===")
 
-# Parametri da testare sistematicamente  
-filters_options = [16, 32, 64]           # 3 opzioni
-architectures = ['baseline', 'extended'] # 2 opzioni
-learning_rates = [0.001, 0.01]          # 2 opzioni
-optimizers = ['adam', 'sgd']             # 2 opzioni
+# Configurazioni selezionate (8 esperimenti)
+cnn_configs = [
+    # Variazione numero filtri (baseline: baseline arch, adam, lr=0.001)
+    {'name': 'CNN_16f_baseline_adam_lr0.001', 'filters': 16, 'architecture': 'baseline', 'optimizer': 'adam', 'learning_rate': 0.001},
+    {'name': 'CNN_32f_baseline_adam_lr0.001', 'filters': 32, 'architecture': 'baseline', 'optimizer': 'adam', 'learning_rate': 0.001},
+    {'name': 'CNN_64f_baseline_adam_lr0.001', 'filters': 64, 'architecture': 'baseline', 'optimizer': 'adam', 'learning_rate': 0.001},
+    
+    # Effetto architettura (extended)
+    {'name': 'CNN_16f_extended_adam_lr0.001', 'filters': 16, 'architecture': 'extended', 'optimizer': 'adam', 'learning_rate': 0.001},
+    {'name': 'CNN_32f_extended_adam_lr0.001', 'filters': 32, 'architecture': 'extended', 'optimizer': 'adam', 'learning_rate': 0.001},
+    {'name': 'CNN_64f_extended_adam_lr0.001', 'filters': 64, 'architecture': 'extended', 'optimizer': 'adam', 'learning_rate': 0.001},
+    
+    # Effetto optimizer
+    {'name': 'CNN_32f_baseline_sgd_lr0.001', 'filters': 32, 'architecture': 'baseline', 'optimizer': 'sgd', 'learning_rate': 0.001},
+    
+    # Effetto learning rate
+    {'name': 'CNN_32f_baseline_adam_lr0.01', 'filters': 32, 'architecture': 'baseline', 'optimizer': 'adam', 'learning_rate': 0.01},
+]
 
-cnn_configs = []
+# Parametri fissi comuni
+for config in cnn_configs:
+    config.update({
+        'epochs': 30,
+        'batch_size': 32,
+        'validation_split': 0.1,
+        'patience': 10,
+        'min_delta': 0.001
+    })
 
-# Generazione configurazioni (3×2×2×2 = 24 esperimenti)
-for filters in filters_options:
-    for arch in architectures:
-        for lr in learning_rates:
-            for opt in optimizers:
-                config = {
-                    'name': f'CNN_{filters}f_{arch}_{opt}_lr{lr}',
-                    'filters': filters,
-                    'architecture': arch,
-                    'optimizer': opt,
-                    'learning_rate': lr,
-                    'epochs': 30,
-                    'batch_size': 32,
-                    'validation_split': 0.1,
-                    'early_stopping': True,
-                    'patience': 10,
-                    'min_delta': 0.001
-                }
-                cnn_configs.append(config)
-
-print(f"Configurazioni CNN generate: {len(cnn_configs)}")
-print(f"Struttura: {len(filters_options)} filtri × {len(architectures)} arch × {len(optimizers)} opt × {len(learning_rates)} LR")
+print(f"Configurazioni CNN: {len(cnn_configs)}")
+for i, config in enumerate(cnn_configs):
+    print(f"  {i+1}. {config['name']}")
 
 # Definizione factory per modelli CNN
 def create_cnn_model(filters, architecture, optimizer, learning_rate):
@@ -378,44 +309,17 @@ def create_cnn_model(filters, architecture, optimizer, learning_rate):
     
     return model
 
-# Test creazione modello
-test_model = create_cnn_model(32, 'baseline', 'adam', 0.001)
-print(f"\nArchitettura baseline di test:")
-test_model.summary()
-
-print(f"\nPrime 3 configurazioni CNN:")
-for i, config in enumerate(cnn_configs[:3]):
-    print(f"  {i+1}. {config['name']}")
-    print(f"     Filtri: {config['filters']}, Arch: {config['architecture']}")
-    print(f"     Optimizer: {config['optimizer']}, LR: {config['learning_rate']}")
-
-# %% [markdown]
-"""
-## Esecuzione Esperimenti CNN
-
-Training sistematico di tutte le 24 configurazioni CNN con early stopping
-e monitoring completo delle performance.
-
-**Setup training:**
-- Epochs: 30 (bilanciamento convergenza/tempo)
-- Batch size: 32 (standard per MNIST)
-- Validation split: 10% (coerente con MLP)
-- Early stopping: patience=10, min_delta=0.001
-"""
+print("Factory CNN definita")
 
 # %%
 # Esecuzione esperimenti CNN
 print("=== ESECUZIONE ESPERIMENTI CNN ===")
-print(f"Avvio training di {len(cnn_configs)} configurazioni...")
 
 cnn_results = []
-start_total = time.time()
+start_time = time.time()
 
 for i, config in enumerate(cnn_configs):
-    config_name = config['name']
-    print(f"\n[{i+1:2d}/{len(cnn_configs)}] Training {config_name}...")
-    
-    start_time = time.time()
+    print(f"[{i+1}/{len(cnn_configs)}] Training {config['name']}...")
     
     # Creazione modello
     model = create_cnn_model(
@@ -433,7 +337,7 @@ for i, config in enumerate(cnn_configs):
         verbose=0
     )
     
-    # Training con validation split
+    # Training
     history = model.fit(
         x_train_cnn, y_train,
         batch_size=config['batch_size'],
@@ -446,605 +350,248 @@ for i, config in enumerate(cnn_configs):
     # Valutazione finale
     train_loss, train_acc = model.evaluate(x_train_cnn, y_train, verbose=0)
     test_loss, test_acc = model.evaluate(x_test_cnn, y_test, verbose=0)
-    training_time = time.time() - start_time
     
-    # Raccolta risultati
+    # Salvataggio risultati
     result = {
-        'name': config_name,
-        'model': model,
-        'config': config,
+        'name': config['name'],
         'train_accuracy': train_acc,
         'test_accuracy': test_acc,
         'overfitting': train_acc - test_acc,
-        'training_time': training_time,
         'epochs_trained': len(history.history['loss']),
-        'converged': len(history.history['loss']) < config['epochs'],
         'history': history,
-        'final_train_loss': train_loss,
-        'final_test_loss': test_loss
+        'model': model
     }
     
     cnn_results.append(result)
-    
-    # Progress report
-    print(f"  ✅ Test Acc: {test_acc:.4f} | Train Acc: {train_acc:.4f} | Overfitting: {train_acc-test_acc:+.4f}")
-    print(f"     Tempo: {training_time:5.1f}s | Epochs: {result['epochs_trained']:2d} | Early Stop: {'✓' if result['converged'] else '✗'}")
+    print(f"  Test Acc: {test_acc:.4f}, Train Acc: {train_acc:.4f}, Overfitting: {train_acc-test_acc:+.4f}")
 
-total_time = time.time() - start_total
-print(f"\n✅ CNN Esperimenti completati!")
-print(f"   Tempo totale: {total_time:.1f}s ({total_time/60:.1f}min)")
-print(f"   Modelli: {len(cnn_results)}/{len(cnn_configs)}")
-print(f"   Tempo medio per esperimento: {total_time/len(cnn_configs):.1f}s")
-
-# %% [markdown]
-"""
----
-# Analisi dei Risultati
-
-## Approccio Analitico
-
-Seguendo la metodologia dei laboratori, analizziamo i risultati attraverso:
-
-1. **Ranking Performance**: Identificazione modelli top per accuratezza test
-2. **Analisi Parametrica**: Effetto sistematico di ogni iperparametro
-3. **Confronto Architetture**: MLP vs CNN con discussione quantitativa
-4. **Analisi Overfitting**: Bilanciamento train vs test accuracy
-5. **Efficienza Computazionale**: Tempo training vs performance
-
-**Obiettivo**: Identificazione configurazioni ottimali e insights per design futuro.
-"""
+total_time = time.time() - start_time
+print(f"CNN esperimenti completati in {total_time:.1f}s")
 
 # %%
-# Analisi dettagliata risultati MLP
-print("=== ANALISI DETTAGLIATA RISULTATI MLP ===")
+# Visualizzazione risultati
+print("=== ANALISI RISULTATI ===")
 
-# 1. RANKING GENERALE
-mlp_sorted = sorted(mlp_results, key=lambda x: x['test_accuracy'], reverse=True)
+# Creazione DataFrame per analisi
+mlp_df = pd.DataFrame([{
+    'name': r['name'],
+    'type': 'MLP',
+    'test_accuracy': r['test_accuracy'],
+    'train_accuracy': r['train_accuracy'],
+    'overfitting': r['overfitting']
+} for r in mlp_results])
 
-print(f"\n🏆 TOP 5 MLP (Test Accuracy):")
-for i, result in enumerate(mlp_sorted[:5]):
-    name_parts = result['name'].split('_')
-    neurons = name_parts[1]
-    layers = name_parts[2] 
-    solver = name_parts[3]
-    lr = name_parts[4]
-    
-    print(f"{i+1:2d}. {result['name']:25} "
-          f"Acc: {result['test_accuracy']:.4f} "
-          f"Ovf: {result['overfitting']:+.4f} "
-          f"Time: {result['training_time']:4.1f}s")
+cnn_df = pd.DataFrame([{
+    'name': r['name'],
+    'type': 'CNN', 
+    'test_accuracy': r['test_accuracy'],
+    'train_accuracy': r['train_accuracy'],
+    'overfitting': r['overfitting']
+} for r in cnn_results])
 
-# 2. ANALISI EFFETTO NUMERO NEURONI
-print(f"\n📊 Effetto Numero Neuroni (1 strato, Adam, LR=0.01):")
-neuron_analysis = []
-for neurons in [50, 100, 250]:
-    matching = [r for r in mlp_results 
-               if f'_{neurons}n_1l_adam_lr0.01' in r['name']]
-    if matching:
-        result = matching[0]
-        neuron_analysis.append((neurons, result['test_accuracy'], result['overfitting']))
-        print(f"   {neurons:3d} neuroni: Acc {result['test_accuracy']:.4f} | Ovf {result['overfitting']:+.4f}")
+all_results_df = pd.concat([mlp_df, cnn_df], ignore_index=True)
 
-# 3. ANALISI EFFETTO PROFONDITÀ  
-print(f"\n📈 Effetto Profondità (100 neuroni, Adam, LR=0.01):")
-depth_analysis = []
-for layers in ['1l', '2l']:
-    matching = [r for r in mlp_results 
-               if f'_100n_{layers}_adam_lr0.01' in r['name']]
-    if matching:
-        result = matching[0]
-        layers_num = 1 if layers == '1l' else 2
-        depth_analysis.append((layers_num, result['test_accuracy'], result['overfitting']))
-        print(f"   {layers_num} strato/i: Acc {result['test_accuracy']:.4f} | Ovf {result['overfitting']:+.4f}")
+# Ordinamento per test accuracy
+all_results_df = all_results_df.sort_values('test_accuracy', ascending=False)
 
-# 4. ANALISI EFFETTO SOLVER
-print(f"\n⚙️  Effetto Solver (100 neuroni, 1 strato, LR=0.01):")
-solver_analysis = []
-for solver in ['sgd', 'adam']:
-    matching = [r for r in mlp_results 
-               if f'_100n_1l_{solver}_lr0.01' in r['name']]
-    if matching:
-        result = matching[0]
-        solver_analysis.append((solver, result['test_accuracy'], result['overfitting']))
-        print(f"   {solver.upper():4s}: Acc {result['test_accuracy']:.4f} | Ovf {result['overfitting']:+.4f}")
-
-# 5. ANALISI EFFETTO LEARNING RATE
-print(f"\n🎯 Effetto Learning Rate (100 neuroni, 1 strato, Adam):")
-lr_analysis = []
-for lr in ['0.001', '0.01', '0.1']:
-    matching = [r for r in mlp_results 
-               if f'_100n_1l_adam_lr{lr}' in r['name']]
-    if matching:
-        result = matching[0]
-        lr_analysis.append((float(lr), result['test_accuracy'], result['overfitting']))
-        print(f"   LR {lr:5s}: Acc {result['test_accuracy']:.4f} | Ovf {result['overfitting']:+.4f}")
-
-# 6. STATISTICHE GENERALI
-test_accs = [r['test_accuracy'] for r in mlp_results]
-overfits = [r['overfitting'] for r in mlp_results]
-times = [r['training_time'] for r in mlp_results]
-
-print(f"\n📋 Statistiche Generali MLP:")
-print(f"   Test Accuracy: μ={np.mean(test_accs):.4f} ± {np.std(test_accs):.4f} | Range: [{np.min(test_accs):.4f}, {np.max(test_accs):.4f}]")
-print(f"   Overfitting:   μ={np.mean(overfits):.4f} ± {np.std(overfits):.4f} | Range: [{np.min(overfits):.4f}, {np.max(overfits):.4f}]")
-print(f"   Training Time: μ={np.mean(times):.1f}s ± {np.std(times):.1f}s | Range: [{np.min(times):.1f}s, {np.max(times):.1f}s]")
+print("Top 5 performance:")
+for i, row in all_results_df.head().iterrows():
+    print(f"{row['name']:30} - Test Acc: {row['test_accuracy']:.4f}")
 
 # %%
-# Analisi dettagliata risultati CNN  
-print("\n=== ANALISI DETTAGLIATA RISULTATI CNN ===")
+# Grafici risultati - Seguendo stile laboratori
+fig, axes = plt.subplots(2, 2, figsize=(15, 10))
 
-# 1. RANKING GENERALE CNN
-cnn_sorted = sorted(cnn_results, key=lambda x: x['test_accuracy'], reverse=True)
+# 1. Confronto accuratezze test (bar chart)
+ax = axes[0, 0]
+colors = ['blue' if 'MLP' in name else 'red' for name in all_results_df['name']]
+bars = ax.bar(range(len(all_results_df)), all_results_df['test_accuracy'], color=colors, alpha=0.7)
+ax.set_xlabel('Configurazioni')
+ax.set_ylabel('Test Accuracy')
+ax.set_title('Confronto Performance Modelli')
+ax.set_xticks(range(len(all_results_df)))
+ax.set_xticklabels([name.replace('_', '\n') for name in all_results_df['name']], 
+                   rotation=45, ha='right', fontsize=8)
+ax.grid(True, alpha=0.3)
 
-print(f"\n🏆 TOP 5 CNN (Test Accuracy):")
-for i, result in enumerate(cnn_sorted[:5]):
-    name_parts = result['name'].split('_')
-    filters = name_parts[1]
-    arch = name_parts[2]
-    opt = name_parts[3]
-    lr = name_parts[4]
-    
-    print(f"{i+1:2d}. {result['name']:30} "
-          f"Acc: {result['test_accuracy']:.4f} "
-          f"Ovf: {result['overfitting']:+.4f} "
-          f"Time: {result['training_time']:4.1f}s")
-
-# 2. ANALISI EFFETTO FILTRI
-print(f"\n🔍 Effetto Numero Filtri (baseline, Adam, LR=0.001):")
-for filters in ['16f', '32f', '64f']:
-    matching = [r for r in cnn_results 
-               if f'_{filters}_baseline_adam_lr0.001' in r['name']]
-    if matching:
-        result = matching[0]
-        filters_num = int(filters.replace('f', ''))
-        print(f"   {filters_num:2d} filtri: Acc {result['test_accuracy']:.4f} | Ovf {result['overfitting']:+.4f}")
-
-# 3. ANALISI EFFETTO ARCHITETTURA
-print(f"\n🏗️  Effetto Architettura (32 filtri, Adam, LR=0.001):")
-for arch in ['baseline', 'extended']:
-    matching = [r for r in cnn_results 
-               if f'_32f_{arch}_adam_lr0.001' in r['name']]
-    if matching:
-        result = matching[0]
-        print(f"   {arch:8s}: Acc {result['test_accuracy']:.4f} | Ovf {result['overfitting']:+.4f}")
-
-# 4. ANALISI EFFETTO OPTIMIZER CNN
-print(f"\n⚙️  Effetto Optimizer (32 filtri, baseline, LR=0.001):")
-for opt in ['adam', 'sgd']:
-    matching = [r for r in cnn_results 
-               if f'_32f_baseline_{opt}_lr0.001' in r['name']]
-    if matching:
-        result = matching[0]
-        print(f"   {opt.upper():4s}: Acc {result['test_accuracy']:.4f} | Ovf {result['overfitting']:+.4f}")
-
-# 5. STATISTICHE GENERALI CNN
-cnn_test_accs = [r['test_accuracy'] for r in cnn_results]
-cnn_overfits = [r['overfitting'] for r in cnn_results]
-cnn_times = [r['training_time'] for r in cnn_results]
-
-print(f"\n📋 Statistiche Generali CNN:")
-print(f"   Test Accuracy: μ={np.mean(cnn_test_accs):.4f} ± {np.std(cnn_test_accs):.4f} | Range: [{np.min(cnn_test_accs):.4f}, {np.max(cnn_test_accs):.4f}]")
-print(f"   Overfitting:   μ={np.mean(cnn_overfits):.4f} ± {np.std(cnn_overfits):.4f} | Range: [{np.min(cnn_overfits):.4f}, {np.max(cnn_overfits):.4f}]")
-print(f"   Training Time: μ={np.mean(cnn_times):.1f}s ± {np.std(cnn_times):.1f}s | Range: [{np.min(cnn_times):.1f}s, {np.max(cnn_times):.1f}s]")
-
-# %%
-# Confronto finale MLP vs CNN
-print("\n=== CONFRONTO FINALE MLP vs CNN ===")
-
-# Miglior MLP
-best_mlp = max(mlp_results, key=lambda x: x['test_accuracy'])
-
-print(f"\n🥇 Miglior MLP:")
-print(f"   Nome: {best_mlp['name']}")
-print(f"   Test Accuracy: {best_mlp['test_accuracy']:.4f}")
-print(f"   Train Accuracy: {best_mlp['train_accuracy']:.4f}")
-print(f"   Overfitting: {best_mlp['overfitting']:+.4f}")
-print(f"   Training Time: {best_mlp['training_time']:.1f}s")
-print(f"   Architettura: {best_mlp['config']['hidden_layer_sizes']}")
-print(f"   Solver: {best_mlp['config']['solver']}, LR: {best_mlp['config']['learning_rate_init']}")
-
-# Miglior CNN
-best_cnn = max(cnn_results, key=lambda x: x['test_accuracy'])
-
-print(f"\n🥇 Miglior CNN:")
-print(f"   Nome: {best_cnn['name']}")
-print(f"   Test Accuracy: {best_cnn['test_accuracy']:.4f}")
-print(f"   Train Accuracy: {best_cnn['train_accuracy']:.4f}")
-print(f"   Overfitting: {best_cnn['overfitting']:+.4f}")
-print(f"   Training Time: {best_cnn['training_time']:.1f}s")
-print(f"   Architettura: {best_cnn['config']['architecture']}, {best_cnn['config']['filters']} filtri")
-print(f"   Optimizer: {best_cnn['config']['optimizer']}, LR: {best_cnn['config']['learning_rate']}")
-
-# Confronto diretto
-print(f"\n⚖️  Confronto Prestazioni:")
-print(f"   Vantaggio CNN accuratezza: {best_cnn['test_accuracy'] - best_mlp['test_accuracy']:+.4f}")
-print(f"   Rapporto training time: {best_cnn['training_time'] / best_mlp['training_time']:.1f}× (CNN/MLP)")
-
-# Statistiche aggregate
-mlp_mean_acc = np.mean([r['test_accuracy'] for r in mlp_results])
-cnn_mean_acc = np.mean([r['test_accuracy'] for r in cnn_results])
-
-print(f"\n📊 Confronto Medio:")
-print(f"   MLP medio: {mlp_mean_acc:.4f}")
-print(f"   CNN medio: {cnn_mean_acc:.4f}")
-print(f"   Vantaggio medio CNN: {cnn_mean_acc - mlp_mean_acc:+.4f}")
-
-# %% [markdown]
-"""
-## Visualizzazioni Scientifiche
-
-Creazione di grafici professionali per l'analisi dei risultati, 
-seguendo lo stile scientifico dei laboratori con focus su 
-interpretabilità e insights quantitativi.
-"""
-
-# %%
-# Creazione visualizzazioni complete
-print("Generazione visualizzazioni scientifiche...")
-
-# Setup figura principale
-fig = plt.figure(figsize=(16, 12))
-gs = fig.add_gridspec(3, 3, hspace=0.3, wspace=0.3)
-
-# Colori consistenti per le visualizzazioni
-colors_mlp = '#2E86AB'  # Blu
-colors_cnn = '#A23B72'  # Rosso/Magenta
-colors_mixed = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D']
-
-# 1. RANKING PERFORMANCE (top-left)
-ax1 = fig.add_subplot(gs[0, 0])
-# Top 8 MLP
-top_mlp = sorted(mlp_results, key=lambda x: x['test_accuracy'], reverse=True)[:8]
-names = [r['name'].replace('MLP_', '').replace('_lr', '\nLR') for r in top_mlp]
-accs = [r['test_accuracy'] for r in top_mlp]
-
-bars = ax1.bar(range(len(names)), accs, color=colors_mlp, alpha=0.7)
-ax1.set_xlabel('Configurazione MLP')
-ax1.set_ylabel('Test Accuracy')
-ax1.set_title('Top 8 Performance MLP', fontweight='bold')
-ax1.set_xticks(range(len(names)))
-ax1.set_xticklabels(names, rotation=45, ha='right', fontsize=8)
-ax1.grid(True, alpha=0.3)
-
-# Valori sulle barre
-for bar, acc in zip(bars, accs):
-    height = bar.get_height()
-    ax1.text(bar.get_x() + bar.get_width()/2., height + 0.002,
-            f'{acc:.3f}', ha='center', va='bottom', fontsize=8)
-
-# 2. ANALISI PARAMETRICA MLP (top-center)
-ax2 = fig.add_subplot(gs[0, 1])
-# Effetto numero neuroni
-neurons_data = {}
-for result in mlp_results:
-    config = result['config']
-    if config['solver'] == 'adam' and config['learning_rate_init'] == 0.01:
-        neurons = config['hidden_layer_sizes'][0]  # primo strato
-        layers = len(config['hidden_layer_sizes'])
-        key = f"{neurons}n_{layers}l"
-        if key not in neurons_data:
-            neurons_data[key] = []
-        neurons_data[key].append(result['test_accuracy'])
-
-# Plot effetto neuroni
-if neurons_data:
-    keys = sorted(neurons_data.keys())
-    means = [np.mean(neurons_data[k]) for k in keys]
-    stds = [np.std(neurons_data[k]) for k in keys]
-    
-    x_pos = range(len(keys))
-    bars = ax2.bar(x_pos, means, yerr=stds, capsize=5, 
-                  color=colors_mlp, alpha=0.7, error_kw={'linewidth': 2})
-    
-    ax2.set_xlabel('Configurazione (Neuroni + Strati)')
-    ax2.set_ylabel('Test Accuracy (mean ± std)')
-    ax2.set_title('Effetto Neuroni e Strati (MLP)', fontweight='bold')
-    ax2.set_xticks(x_pos)
-    ax2.set_xticklabels(keys, rotation=45, ha='right')
-    ax2.grid(True, alpha=0.3)
-
-# 3. CURVE DI LOSS (top-right)  
-ax3 = fig.add_subplot(gs[0, 2])
-# Mostra curve di loss per top 3 MLP
-top_3_mlp = sorted(mlp_results, key=lambda x: x['test_accuracy'], reverse=True)[:3]
-
-for i, result in enumerate(top_3_mlp):
-    if result['loss_curve'] is not None:
-        label = result['name'].replace('MLP_', '').replace('_lr', ' LR')
-        ax3.plot(result['loss_curve'], label=label, linewidth=2, alpha=0.8)
-
-ax3.set_xlabel('Iterazioni')
-ax3.set_ylabel('Loss')
-ax3.set_title('Curve di Loss - Top 3 MLP', fontweight='bold')
-ax3.legend(fontsize=8)
-ax3.grid(True, alpha=0.3)
-
-# 4. CONFRONTO MLP vs CNN (middle-left)
-ax4 = fig.add_subplot(gs[1, 0])
-mlp_accs = [r['test_accuracy'] for r in mlp_results]
-cnn_accs = [r['test_accuracy'] for r in cnn_results]
-
-# Boxplot comparison
-box_data = [mlp_accs, cnn_accs]
-bp = ax4.boxplot(box_data, labels=['MLP', 'CNN'], patch_artist=True)
-bp['boxes'][0].set_facecolor(colors_mlp)
-bp['boxes'][1].set_facecolor(colors_cnn)
-
-ax4.set_ylabel('Test Accuracy')
-ax4.set_title('Distribuzione Performance:\nMLP vs CNN', fontweight='bold')
-ax4.grid(True, alpha=0.3)
-
-# Statistiche testuali
-mlp_mean = np.mean(mlp_accs)
-cnn_mean = np.mean(cnn_accs)
-ax4.text(0.02, 0.98, f'MLP: μ={mlp_mean:.3f}\nCNN: μ={cnn_mean:.3f}\nΔ={cnn_mean-mlp_mean:+.3f}', 
-        transform=ax4.transAxes, va='top', fontsize=9,
-        bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
-
-# 5. ANALISI OVERFITTING (middle-center)
-ax5 = fig.add_subplot(gs[1, 1])
-all_results = mlp_results + cnn_results
-train_accs = [r['train_accuracy'] for r in all_results]
-test_accs = [r['test_accuracy'] for r in all_results]
-
-# Colori per tipo
-colors = [colors_mlp if 'MLP' in r['name'] else colors_cnn for r in all_results]
-
-scatter = ax5.scatter(train_accs, test_accs, c=colors, alpha=0.6, s=60, edgecolors='black', linewidth=0.5)
+# 2. Train vs Test accuracy (scatter plot)
+ax = axes[0, 1]
+mlp_mask = all_results_df['type'] == 'MLP'
+ax.scatter(all_results_df[mlp_mask]['train_accuracy'], 
+           all_results_df[mlp_mask]['test_accuracy'], 
+           c='blue', label='MLP', alpha=0.7, s=60)
+ax.scatter(all_results_df[~mlp_mask]['train_accuracy'], 
+           all_results_df[~mlp_mask]['test_accuracy'], 
+           c='red', label='CNN', alpha=0.7, s=60)
 
 # Linea perfetta generalizzazione
-min_acc = min(min(train_accs), min(test_accs))
-max_acc = max(max(train_accs), max(test_accs))
-ax5.plot([min_acc, max_acc], [min_acc, max_acc], 'k--', alpha=0.5, linewidth=2, label='Perfetta Generalizzazione')
+min_acc = min(all_results_df['train_accuracy'].min(), all_results_df['test_accuracy'].min())
+max_acc = max(all_results_df['train_accuracy'].max(), all_results_df['test_accuracy'].max())
+ax.plot([min_acc, max_acc], [min_acc, max_acc], 'k--', alpha=0.5, label='Perfetta Generalizzazione')
 
-ax5.set_xlabel('Train Accuracy')
-ax5.set_ylabel('Test Accuracy') 
-ax5.set_title('Analisi Overfitting', fontweight='bold')
-ax5.grid(True, alpha=0.3)
+ax.set_xlabel('Train Accuracy')
+ax.set_ylabel('Test Accuracy')
+ax.set_title('Analisi Overfitting')
+ax.legend()
+ax.grid(True, alpha=0.3)
 
-# Legenda colori
-from matplotlib.patches import Patch
-legend_elements = [Patch(facecolor=colors_mlp, label='MLP'),
-                   Patch(facecolor=colors_cnn, label='CNN')]
-ax5.legend(handles=legend_elements, loc='upper left')
+# 3. Curve di loss MLP (primi 3 modelli)
+ax = axes[1, 0]
+for i, result in enumerate(mlp_results[:3]):
+    if result['loss_curve'] is not None:
+        ax.plot(result['loss_curve'], label=result['name'].replace('MLP_', ''), alpha=0.8)
 
-# 6. EFFICIENZA COMPUTAZIONALE (middle-right)
-ax6 = fig.add_subplot(gs[1, 2])
-test_accs_all = [r['test_accuracy'] for r in all_results]
-times_all = [r['training_time'] for r in all_results]
-colors_all = [colors_mlp if 'MLP' in r['name'] else colors_cnn for r in all_results]
+ax.set_xlabel('Iterazioni')
+ax.set_ylabel('Loss')
+ax.set_title('Curve di Loss - MLP (Top 3)')
+ax.legend(fontsize=8)
+ax.grid(True, alpha=0.3)
 
-scatter = ax6.scatter(times_all, test_accs_all, c=colors_all, alpha=0.6, s=60, edgecolors='black', linewidth=0.5)
+# 4. Confronto MLP vs CNN (boxplot)
+ax = axes[1, 1]
+mlp_accs = all_results_df[all_results_df['type'] == 'MLP']['test_accuracy']
+cnn_accs = all_results_df[all_results_df['type'] == 'CNN']['test_accuracy']
 
-ax6.set_xlabel('Training Time (secondi)')
-ax6.set_ylabel('Test Accuracy')
-ax6.set_title('Efficienza:\nAccuracy vs Training Time', fontweight='bold')
-ax6.grid(True, alpha=0.3)
+box_data = [mlp_accs, cnn_accs]
+bp = ax.boxplot(box_data, labels=['MLP', 'CNN'], patch_artist=True)
+bp['boxes'][0].set_facecolor('lightblue')
+bp['boxes'][1].set_facecolor('lightcoral')
 
-# Identificazione miglior rapporto
-# Calcola efficiency score (accuracy/time ratio normalizzato)
-max_acc = max(test_accs_all)
-min_time = min(times_all)
-efficiency_scores = [(acc/max_acc) / (time/min_time) for acc, time in zip(test_accs_all, times_all)]
-best_idx = np.argmax(efficiency_scores)
-
-ax6.scatter(times_all[best_idx], test_accs_all[best_idx], 
-           s=200, facecolors='none', edgecolors='gold', linewidth=3, label='Migliore Efficienza')
-ax6.legend()
-
-# 7. HEATMAP PERFORMANCE MLP (bottom-left)
-ax7 = fig.add_subplot(gs[2, 0])
-# Crea matrice performance per heatmap
-solvers = ['sgd', 'adam']
-lrs = [0.001, 0.01, 0.1]
-
-# Matrice per 100 neuroni, 1 strato
-heatmap_data = np.zeros((len(solvers), len(lrs)))
-
-for i, solver in enumerate(solvers):
-    for j, lr in enumerate(lrs):
-        matching = [r for r in mlp_results 
-                   if f'_100n_1l_{solver}_lr{lr}' in r['name']]
-        if matching:
-            heatmap_data[i, j] = matching[0]['test_accuracy']
-        else:
-            heatmap_data[i, j] = np.nan
-
-im = ax7.imshow(heatmap_data, cmap='viridis', aspect='auto')
-ax7.set_xticks(range(len(lrs)))
-ax7.set_xticklabels([f'{lr}' for lr in lrs])
-ax7.set_yticks(range(len(solvers)))
-ax7.set_yticklabels([s.upper() for s in solvers])
-ax7.set_xlabel('Learning Rate')
-ax7.set_ylabel('Solver')
-ax7.set_title('Heatmap Performance MLP\n(100 neuroni, 1 strato)', fontweight='bold')
-
-# Aggiunta valori nelle celle
-for i in range(len(solvers)):
-    for j in range(len(lrs)):
-        if not np.isnan(heatmap_data[i, j]):
-            text = ax7.text(j, i, f'{heatmap_data[i, j]:.3f}',
-                           ha="center", va="center", color="white", fontweight='bold')
-
-plt.colorbar(im, ax=ax7, shrink=0.8)
-
-# 8. SUMMARY STATISTICS (bottom-center & bottom-right)
-ax8 = fig.add_subplot(gs[2, 1:])
-ax8.axis('off')
-
-# Testo riassuntivo
-summary_text = "RISULTATI PUNTO A - ANALISI ARCHITETTURALE\n\n"
-
-best_mlp = max(mlp_results, key=lambda x: x['test_accuracy'])
-summary_text += f"🏆 MIGLIOR MLP:\n"
-summary_text += f"   • Configurazione: {best_mlp['name']}\n"
-summary_text += f"   • Test Accuracy: {best_mlp['test_accuracy']:.4f}\n"
-summary_text += f"   • Overfitting: {best_mlp['overfitting']:+.4f}\n"
-summary_text += f"   • Training Time: {best_mlp['training_time']:.1f}s\n\n"
-
-best_cnn = max(cnn_results, key=lambda x: x['test_accuracy'])
-summary_text += f"🏆 MIGLIOR CNN:\n"
-summary_text += f"   • Configurazione: {best_cnn['name']}\n"
-summary_text += f"   • Test Accuracy: {best_cnn['test_accuracy']:.4f}\n"
-summary_text += f"   • Overfitting: {best_cnn['overfitting']:+.4f}\n"
-summary_text += f"   • Training Time: {best_cnn['training_time']:.1f}s\n\n"
-
-summary_text += f"⚖️ CONFRONTO:\n"
-summary_text += f"   • Vantaggio CNN: {best_cnn['test_accuracy'] - best_mlp['test_accuracy']:+.4f}\n"
-summary_text += f"   • Rapporto tempo: {best_cnn['training_time'] / best_mlp['training_time']:.1f}× (CNN/MLP)\n\n"
-
-# Insights principali
-summary_text += f"🔍 INSIGHTS PRINCIPALI:\n"
-mlp_accs = [r['test_accuracy'] for r in mlp_results]
-cnn_accs = [r['test_accuracy'] for r in cnn_results]
-summary_text += f"   • MLP: range accuracy {np.min(mlp_accs):.3f} - {np.max(mlp_accs):.3f}\n"
-summary_text += f"   • CNN: range accuracy {np.min(cnn_accs):.3f} - {np.max(cnn_accs):.3f}\n"
-summary_text += f"   • Esperimenti totali: {len(mlp_results)} MLP + {len(cnn_results)} CNN\n"
-summary_text += f"   • Tempo totale: ~{(np.sum([r['training_time'] for r in all_results])/60):.0f} minuti"
-
-ax8.text(0.05, 0.95, summary_text, transform=ax8.transAxes, fontsize=10,
-         verticalalignment='top', fontfamily='monospace',
-         bbox=dict(boxstyle='round,pad=0.5', facecolor='lightgray', alpha=0.8))
-
-plt.suptitle('PUNTO A: ANALISI ARCHITETTURALE COMPLETA - RISULTATI SISTEMATICI', 
-             fontsize=16, fontweight='bold', y=0.98)
+ax.set_ylabel('Test Accuracy')
+ax.set_title('Distribuzione Performance MLP vs CNN')
+ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
 plt.show()
 
-print("✅ Visualizzazioni complete generate")
+# %%
+# Analisi parametrica dettagliata
+print("ANALISI PARAMETRICA DETTAGLIATA")
+print("="*50)
+
+# Effetto numero neuroni MLP
+print("\nEffetto numero neuroni (MLP, 1 strato, adam, lr=0.01):")
+for neurons in [50, 100, 250]:
+    matching = [r for r in mlp_results if f'_{neurons}n_1l_adam_lr0.01' in r['name']]
+    if matching:
+        result = matching[0]
+        print(f"  {neurons:3d} neuroni: {result['test_accuracy']:.4f}")
+
+# Effetto profondità MLP
+print("\nEffetto profondità (MLP, adam, lr=0.01):")
+for neurons in [50, 100, 250]:
+    # 1 strato
+    result_1l = [r for r in mlp_results if f'_{neurons}n_1l_adam_lr0.01' in r['name']]
+    # 2 strati  
+    result_2l = [r for r in mlp_results if f'_{neurons}n_2l_adam_lr0.01' in r['name']]
+    
+    if result_1l and result_2l:
+        acc_1l = result_1l[0]['test_accuracy']
+        acc_2l = result_2l[0]['test_accuracy']
+        print(f"  {neurons}n: 1 strato={acc_1l:.4f}, 2 strati={acc_2l:.4f}, diff={acc_2l-acc_1l:+.4f}")
+
+# Effetto numero filtri CNN
+print("\nEffetto numero filtri (CNN, baseline, adam, lr=0.001):")
+for filters in [16, 32, 64]:
+    matching = [r for r in cnn_results if f'_{filters}f_baseline_adam_lr0.001' in r['name']]
+    if matching:
+        result = matching[0]
+        print(f"  {filters:2d} filtri: {result['test_accuracy']:.4f}")
+
+# Effetto architettura CNN
+print("\nEffetto architettura (CNN, adam, lr=0.001):")
+for filters in [16, 32, 64]:
+    # Baseline
+    result_base = [r for r in cnn_results if f'_{filters}f_baseline_adam_lr0.001' in r['name']]
+    # Extended
+    result_ext = [r for r in cnn_results if f'_{filters}f_extended_adam_lr0.001' in r['name']]
+    
+    if result_base and result_ext:
+        acc_base = result_base[0]['test_accuracy']
+        acc_ext = result_ext[0]['test_accuracy']
+        print(f"  {filters}f: baseline={acc_base:.4f}, extended={acc_ext:.4f}, diff={acc_ext-acc_base:+.4f}")
+
+# %%
+# Statistiche riassuntive
+print("\nSTATISTICHE RIASSUNTIVE")
+print("="*30)
+
+mlp_accs = [r['test_accuracy'] for r in mlp_results]
+cnn_accs = [r['test_accuracy'] for r in cnn_results]
+
+print(f"MLP - Media: {np.mean(mlp_accs):.4f}, Std: {np.std(mlp_accs):.4f}")
+print(f"      Range: [{np.min(mlp_accs):.4f}, {np.max(mlp_accs):.4f}]")
+
+print(f"CNN - Media: {np.mean(cnn_accs):.4f}, Std: {np.std(cnn_accs):.4f}")
+print(f"      Range: [{np.min(cnn_accs):.4f}, {np.max(cnn_accs):.4f}]")
+
+print(f"\nVantaggio medio CNN: {np.mean(cnn_accs) - np.mean(mlp_accs):+.4f}")
+
+# Migliori modelli
+best_mlp = max(mlp_results, key=lambda x: x['test_accuracy'])
+best_cnn = max(cnn_results, key=lambda x: x['test_accuracy'])
+
+print(f"\nMigliore MLP: {best_mlp['name']} - {best_mlp['test_accuracy']:.4f}")
+print(f"Migliore CNN: {best_cnn['name']} - {best_cnn['test_accuracy']:.4f}")
 
 # %% [markdown]
 """
 ---
 # Conclusioni del Punto A
 
-## Risultati Principali della Sperimentazione Sistematica
+## Risultati della Sperimentazione
 
-### 🎯 Configurazioni Ottimali Identificate
+La sperimentazione sistematica di 17 configurazioni (9 MLP + 8 CNN) ha fornito 
+insights interessanti sugli effetti dei principali iper-parametri.
 
-**Migliori Performance:**
-- I modelli più performanti emergono dalla sperimentazione sistematica di 60 configurazioni
-- La metodologia ha permesso di identificare combinazioni ottimali di iperparametri
-- I risultati forniscono una base solida per i punti successivi del progetto
+### Performance Generali
+I risultati mostrano variazioni significative tra le diverse configurazioni, 
+con alcune tendenze emergenti per entrambe le architetture.
 
-### 📊 Insights dall'Analisi Parametrica
+### Effetti degli Iper-parametri
 
-**1. Effetto del Numero di Neuroni (MLP)**
-- Pattern sistematico nell'incremento delle performance con più neuroni
-- Identificazione del punto di saturazione oltre il quale i miglioramenti sono marginali
-- Bilanciamento tra capacità del modello e rischio di overfitting
+**Per MLP:**
+- Il numero di neuroni influenza le performance, con pattern da analizzare nei risultati effettivi
+- L'aggiunta di un secondo strato nascosto mostra effetti variabili a seconda della configurazione
+- La scelta del solver (SGD vs Adam) presenta differenze notevoli
+- Il learning rate ha un impatto significativo sulla convergenza
 
-**2. Effetto della Profondità**
-- Confronto quantitativo tra architetture a 1 vs 2 strati nascosti
-- Analisi del trade-off complessità vs generalizzazione
-- Evidenza empirica per le scelte architetturali
+**Per CNN:**
+- Il numero di filtri mostra relazioni interessanti con le performance finali
+- L'architettura extended presenta caratteristiche diverse rispetto alla baseline
+- L'optimizer influenza sia velocità di convergenza che performance finale
+- Il learning rate richiede calibrazione attenta per le CNN
 
-**3. Impatto degli Algoritmi di Ottimizzazione**
-- Confronto sistematico SGD vs Adam sia per MLP che CNN
-- Analisi dell'interazione tra optimizer e learning rate
-- Identificazione delle configurazioni più stabili
+### Confronto MLP vs CNN
+Le due architetture mostrano caratteristiche complementari, con trade-off 
+tra complessità computazionale e performance.
 
-**4. Sensibilità al Learning Rate**
-- Range testing sistematico su tre ordini di grandezza
-- Identificazione della zona ottimale per convergenza
-- Correlazione con architettura e tipo di modello
+### Osservazioni sui Pattern di Overfitting
+L'analisi train vs test accuracy rivela diversi livelli di generalizzazione 
+tra le configurazioni, con implicazioni per la robustezza del modello.
 
-### 🏗️ Confronto Architetturale MLP vs CNN
-
-**Performance Relative:**
-- Valutazione quantitativa del vantaggio CNN per dati visivi
-- Analisi del rapporto efficienza computazionale vs performance
-- Trade-off tra interpretabilità (MLP) e specializzazione (CNN)
-
-**Robustezza e Generalizzazione:**
-- Confronto dei livelli di overfitting tra le architetture
-- Stabilità dei risultati attraverso configurazioni multiple
-- Implications per applicazioni reali
-
-### ⚡ Efficienza Computazionale
-
-**Training Time Analysis:**
-- Quantificazione dei costi computazionali per ogni configurazione
-- Identificazione del miglior rapporto performance/tempo
-- Considerazioni pratiche per deployment
-
-### 🔍 Metodologia e Riproducibilità
-
-**Rigore Sperimentale:**
-- 60 esperimenti sistematici con parametri controllati
-- Early stopping per efficienza e prevenzione overfitting
-- Documentazione completa per riproducibilità
-
-**Validazione Statistica:**
-- Analisi delle distribuzioni di performance
-- Identificazione di pattern significativi vs variabilità casuale
-- Confidence negli insights derivati
-
-### 🎓 Contributi all'Obiettivo Didattico
-
-**Collegamento con i Laboratori:**
-- Estensione naturale della metodologia del Lab 2 (MLP)
-- Integrazione con i concetti del Lab 3 (CNN)
-- Approccio sistematico vs esplorativo
-
-**Preparazione per Punti Successivi:**
-- Identificazione dei modelli ottimali per l'analisi degli errori (Punto B)
-- Baseline solide per gli esperimenti di robustezza (Punti C-E)
-- Framework metodologico per estensioni future
+Questi risultati costituiscono la base per la selezione dei modelli ottimali 
+per i punti successivi del progetto.
 
 ---
 
-## Modelli Selezionati per Continuazione
+## Preparazione per i Punti Successivi
 
-**Per Punto B (Analisi Errori):** 
-Il miglior MLP identificato verrà utilizzato per l'analisi dettagliata degli errori di classificazione.
-
-**Per Punti C-E (Robustezza e Training):** 
-La configurazione con il miglior bilanciamento performance/efficienza guiderà gli esperimenti di robustezza al rumore e training con dataset ridotti.
-
-Questi risultati costituiscono una solida foundation empirica per il resto del progetto, 
-dimostrando l'efficacia dell'approccio sistematico nell'identificazione di configurazioni 
-ottimali per il riconoscimento di cifre manoscritte.
+I modelli e dati preprocessati sono ora disponibili per:
+- **Punto B**: Analisi degli errori di classificazione
+- **Punto C**: Studio della robustezza al rumore
+- **Punto D**: Effetto della riduzione del dataset di training  
+- **Punto E**: Miglioramento tramite data augmentation
 """
 
 # %%
-# Salvataggio modelli ottimali per punti successivi
-print("=== PREPARAZIONE PER PUNTI SUCCESSIVI ===")
+# Salvataggio dati per punti successivi
+print("Preparazione dati per punti successivi...")
 
-# Identificazione modelli ottimali
-selected_models = {}
-
-best_mlp = max(mlp_results, key=lambda x: x['test_accuracy'])
-selected_models['best_mlp'] = {
-    'model': best_mlp['model'],
-    'config': best_mlp['config'],
-    'performance': {
-        'test_accuracy': best_mlp['test_accuracy'],
-        'train_accuracy': best_mlp['train_accuracy'],
-        'overfitting': best_mlp['overfitting']
-    },
-    'name': best_mlp['name']
-}
-print(f"✅ Miglior MLP selezionato per Punto B: {best_mlp['name']}")
-print(f"   Test Accuracy: {best_mlp['test_accuracy']:.4f}")
-
-best_cnn = max(cnn_results, key=lambda x: x['test_accuracy'])
-selected_models['best_cnn'] = {
-    'model': best_cnn['model'],
-    'config': best_cnn['config'],
-    'performance': {
-        'test_accuracy': best_cnn['test_accuracy'],
-        'train_accuracy': best_cnn['train_accuracy'],
-        'overfitting': best_cnn['overfitting']
-    },
-    'name': best_cnn['name']
-}
-print(f"✅ Miglior CNN selezionato per Punti C-E: {best_cnn['name']}")
-print(f"   Test Accuracy: {best_cnn['test_accuracy']:.4f}")
-
-# Salvataggio dati preprocessati
-selected_models['data'] = {
+# Salvataggio tutti i risultati
+experiment_data = {
+    'mlp_results': mlp_results,
+    'cnn_results': cnn_results,
     'x_train_mlp': x_train_mlp,
     'x_test_mlp': x_test_mlp,
     'x_train_cnn': x_train_cnn,
@@ -1053,15 +600,7 @@ selected_models['data'] = {
     'y_test': y_test
 }
 
-# Riepilogo finale
-print(f"\n📋 RIEPILOGO PUNTO A:")
-print(f"   • Esperimenti MLP: {len(mlp_configs)} configurazioni")
-print(f"   • Esperimenti CNN: {len(cnn_configs)} configurazioni")
-print(f"   • Successi MLP: {len(mlp_results)}/{len(mlp_configs)}")
-print(f"   • Successi CNN: {len(cnn_results)}/{len(cnn_configs)}")
-print(f"   • Modelli selezionati per continuazione: {len(selected_models)-1}")  # -1 per 'data'
-
-print(f"\n🎯 PUNTO A COMPLETATO CON SUCCESSO!")
-print(f"   Base solida per implementazione Punti B-E del progetto")
+print("Dati salvati per continuazione del progetto")
+print(f"Esperimenti completati: {len(mlp_results)} MLP + {len(cnn_results)} CNN")
 
 # %%
