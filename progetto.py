@@ -726,7 +726,6 @@ print(f"Iterazioni medie CNN: {np.mean(iter_cnn):.1f}")
 print(f"Configurazione più veloce: {nomi_ordinati_iter[0]} - {iterazioni_ordinate[0]} iterazioni")
 print(f"Configurazione più lenta: {nomi_ordinati_iter[-1]} - {iterazioni_ordinate[-1]} iterazioni")
 
-
 # %% [markdown]
 # #### Discussione del grafico e dei risultati  
 # La velocità di convergenza mostra pattern chiari legati all'architettura e agli iperparametri: le CNN convergono sistematicamente più velocemente (media 6.7 iterazioni) rispetto agli MLP (media 22.2 iterazioni) grazie a gradient flow più efficace e paesaggi di loss più regolari derivanti dalla struttura convoluzionale.  
@@ -857,64 +856,213 @@ print(f"Rapporto tempo medio (2S : 1S): {np.mean(rapporto_tempo):.2f}x")
 # ---
 # ## Punto B: Analisi delle cifre più difficili da riconoscere
 # 
-# Utilizziamo la matrice di confusione per identificare quali cifre il modello MLP trova più difficili da classificare correttamente.
+# Utilizziamo l'architettura MLP ottimale identificata nel Punto A per analizzare sistematicamente quali cifre sono più difficili da classificare. L'analisi si concentra sui pattern di errore attraverso la matrice di confusione e l'identificazione degli esempi più problematici, fornendo insights cruciali per comprendere i limiti del modello e le sfide intrinseche del riconoscimento di cifre manoscritte.
+
+# %% [markdown]
+# ### Selezione e training dell'architettura ottimale
+# 
+# Utilizziamo l'architettura **MLP 250n_1S_lr0.001** identificata come migliore nel Punto A, che offre il miglior compromesso tra accuratezza (98.10%) ed efficienza computazionale per l'analisi degli errori.
 
 # %%
-# Addestro un MLP con architettura ottimale trovata precedentemente
-best_mlp_config = max(mlp_results, key=lambda x: x['test_accuracy'])
+# Selezione architettura MLP ottimale dal Punto A
+migliore_mlp = max(risultati_mlp, key=lambda x: x['test_accuracy'])
 
-mlp_best = MLPClassifier(
-    hidden_layer_sizes=best_mlp_config['hidden_layers'],
-    learning_rate_init=best_mlp_config['learning_rate'],
+print("SELEZIONE ARCHITETTURA OTTIMALE PER ANALISI ERRORI")
+print("=" * 60)
+print(f"Architettura selezionata: {migliore_mlp['nome_config']}")
+print(f"Accuratezza test: {migliore_mlp['test_accuracy']:.4f}")
+print(f"Neuroni: {migliore_mlp['neuroni']}, Strati: {migliore_mlp['n_strati']}")
+print(f"Learning rate: {migliore_mlp['learning_rate']}")
+print(f"Tempo training: {migliore_mlp['training_time']:.1f}s")
+
+# Training del modello ottimale
+mlp_optimal = MLPClassifier(
+    hidden_layer_sizes=migliore_mlp['strati_nascosti'],
+    learning_rate_init=migliore_mlp['learning_rate'],
     max_iter=100,
-    random_state=42,
     early_stopping=True,
-    validation_fraction=0.1
+    validation_fraction=0.1,
+    tol=0.001,
+    n_iter_no_change=10,
+    random_state=42
 )
 
-print(f"Training MLP con architettura ottimale: {best_mlp_config['config_name']}")
-mlp_best.fit(x_tr, mnist_tr_labels)
-print(f"Accuratezza sul test set: {mlp_best.score(x_te, mnist_te_labels):.4f}")
+print("\nTraining modello ottimale...")
+start_time = time.time()
+mlp_optimal.fit(x_tr, mnist_tr_labels)
+training_time = time.time() - start_time
+
+# Valutazione prestazioni
+train_accuracy = mlp_optimal.score(x_tr, mnist_tr_labels)
+test_accuracy = mlp_optimal.score(x_te, mnist_te_labels)
+
+print(f"Training completato in {training_time:.1f}s")
+print(f"Accuratezza training: {train_accuracy:.4f}")
+print(f"Accuratezza test: {test_accuracy:.4f}")
+print(f"Overfitting: {train_accuracy - test_accuracy:+.4f}")
 
 # %%
-# Calcolo predizioni e matrice di confusione
-y_pred = mlp_best.predict(x_te)
+# Calcolo predizioni per analisi errori
+y_pred = mlp_optimal.predict(x_te)
+y_pred_proba = mlp_optimal.predict_proba(x_te)
 
-# Visualizzazione matrice di confusione
+print(f"\nPredizioni calcolate su {len(y_pred)} esempi di test")
+print(f"Accuratezza verificata: {np.mean(y_pred == mnist_te_labels):.4f}")
+
+# %% [markdown]
+# ### Grafico 1: Matrice di Confusione Avanzata
+# 
+# La matrice di confusione fornisce una visione completa degli errori del modello, mostrando non solo dove il modello sbaglia, ma anche i pattern sistematici di confusione tra specifiche coppie di cifre. Questa visualizzazione avanzata include percentuali normalizzate e annotazioni statistiche per facilitare l'interpretazione.
+
+# %%
+# Calcolo matrice di confusione e metriche dettagliate
 cm = metrics.confusion_matrix(mnist_te_labels, y_pred)
-disp = metrics.ConfusionMatrixDisplay(confusion_matrix=cm)
+cm_normalized = metrics.confusion_matrix(mnist_te_labels, y_pred, normalize='true')
 
-fig, ax = plt.subplots(figsize=(10, 8))
-disp.plot(ax=ax, cmap='Blues', values_format='d')
-ax.set_title('Matrice di Confusione - MLP su MNIST', fontsize=16)
+# Visualizzazione matrice di confusione avanzata
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
+
+# Matrice di confusione assoluta
+im1 = ax1.imshow(cm, cmap='Blues')
+ax1.set_xticks(range(10))
+ax1.set_yticks(range(10))
+ax1.set_xlabel('Cifra Predetta', fontsize=12)
+ax1.set_ylabel('Cifra Vera', fontsize=12)
+ax1.set_title('Matrice di Confusione - Valori Assoluti', fontsize=14)
+
+# Annotazioni con valori
+for i in range(10):
+    for j in range(10):
+        color = 'white' if cm[i, j] > cm.max() / 2 else 'black'
+        ax1.text(j, i, f'{cm[i, j]}', ha='center', va='center', 
+                color=color, fontweight='bold')
+
+# Matrice di confusione normalizzata
+im2 = ax2.imshow(cm_normalized, cmap='Reds')
+ax2.set_xticks(range(10))
+ax2.set_yticks(range(10))
+ax2.set_xlabel('Cifra Predetta', fontsize=12)
+ax2.set_ylabel('Cifra Vera', fontsize=12)
+ax2.set_title('Matrice di Confusione - Percentuali per Classe', fontsize=14)
+
+# Annotazioni con percentuali
+for i in range(10):
+    for j in range(10):
+        color = 'white' if cm_normalized[i, j] > 0.5 else 'black'
+        ax2.text(j, i, f'{cm_normalized[i, j]:.2f}', ha='center', va='center',
+                color=color, fontweight='bold')
+
+# Colorbar per entrambe
+fig.colorbar(im1, ax=ax1, shrink=0.6)
+fig.colorbar(im2, ax=ax2, shrink=0.6)
+
+plt.tight_layout()
 plt.show()
 
+# Statistiche globali matrice
+total_errors = np.sum(cm) - np.trace(cm)
+print(f"STATISTICHE MATRICE DI CONFUSIONE:")
+print(f"Errori totali: {total_errors} su {np.sum(cm)} esempi")
+print(f"Tasso di errore globale: {total_errors/np.sum(cm)*100:.2f}%")
+print(f"Accuratezza dalla matrice: {np.trace(cm)/np.sum(cm):.4f}")
+
+# %% [markdown]
+# ### Grafico 2: Bar Chart Errori Ordinati per Difficoltà
+# 
+# Questo grafico quantifica sistematicamente la difficoltà di riconoscimento per ogni cifra, ordinando le classi dal tasso di errore più alto al più basso. L'analisi permette di identificare immediatamente quali cifre rappresentano le sfide maggiori per il modello e fornisce metriche precise per comparazioni future.
+
 # %%
-# Analisi degli errori più frequenti
+# Analisi errori per singola cifra
 errors_per_digit = []
 for digit in range(10):
     mask = mnist_te_labels == digit
-    total = np.sum(mask)
-    correct = np.sum((y_pred == mnist_te_labels) & mask)
-    error_rate = 1 - (correct / total)
+    total_samples = np.sum(mask)
+    correct_predictions = np.sum((y_pred == mnist_te_labels) & mask)
+    errors = total_samples - correct_predictions
+    error_rate = errors / total_samples
+    accuracy = correct_predictions / total_samples
+    
+    # Calcolo confidenza media per predizioni corrette e errate
+    digit_predictions = y_pred_proba[mask]
+    correct_mask = (y_pred == mnist_te_labels)[mask]
+    
+    avg_confidence_correct = np.mean(np.max(digit_predictions[correct_mask], axis=1)) if np.any(correct_mask) else 0
+    avg_confidence_errors = np.mean(np.max(digit_predictions[~correct_mask], axis=1)) if np.any(~correct_mask) else 0
     
     errors_per_digit.append({
         'digit': digit,
-        'total_samples': total,
-        'correct': correct,
-        'errors': total - correct,
+        'total_samples': total_samples,
+        'correct': correct_predictions,
+        'errors': errors,
         'error_rate': error_rate,
-        'accuracy': correct / total
+        'accuracy': accuracy,
+        'avg_confidence_correct': avg_confidence_correct,
+        'avg_confidence_errors': avg_confidence_errors
     })
 
+# Creazione DataFrame e ordinamento per difficoltà
 df_errors = pd.DataFrame(errors_per_digit)
 df_errors_sorted = df_errors.sort_values('error_rate', ascending=False)
 
-print("Cifre ordinate per difficoltà (tasso di errore):")
-print(df_errors_sorted[['digit', 'total_samples', 'errors', 'error_rate', 'accuracy']])
+# Visualizzazione bar chart errori ordinati
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+
+# Subplot 1: Tasso di errore per cifra
+colors = plt.cm.RdYlBu_r(df_errors_sorted['error_rate'] / df_errors_sorted['error_rate'].max())
+bars1 = ax1.bar(range(10), df_errors_sorted['error_rate'] * 100, color=colors, alpha=0.8)
+
+ax1.set_xlabel('Cifra (ordinata per difficoltà)', fontsize=12)
+ax1.set_ylabel('Tasso di Errore (%)', fontsize=12)
+ax1.set_title('Difficoltà di Riconoscimento per Cifra', fontsize=14)
+ax1.set_xticks(range(10))
+ax1.set_xticklabels(df_errors_sorted['digit'])
+ax1.grid(True, alpha=0.3)
+
+# Annotazioni dettagliate
+for i, (bar, row) in enumerate(zip(bars1, df_errors_sorted.itertuples())):
+    height = bar.get_height()
+    ax1.annotate(f'{height:.1f}%\n({row.errors}/{row.total_samples})', 
+                xy=(bar.get_x() + bar.get_width()/2, height),
+                xytext=(0, 5), textcoords="offset points",
+                ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+# Subplot 2: Confronto confidenza predizioni corrette vs errate
+x_pos = np.arange(10)
+width = 0.35
+
+bars_correct = ax2.bar(x_pos - width/2, df_errors_sorted['avg_confidence_correct'], 
+                      width, label='Predizioni Corrette', alpha=0.8, color='lightgreen')
+bars_errors = ax2.bar(x_pos + width/2, df_errors_sorted['avg_confidence_errors'], 
+                     width, label='Predizioni Errate', alpha=0.8, color='lightcoral')
+
+ax2.set_xlabel('Cifra (ordinata per difficoltà)', fontsize=12)
+ax2.set_ylabel('Confidenza Media Predizione', fontsize=12)
+ax2.set_title('Confidenza del Modello: Corrette vs Errate', fontsize=14)
+ax2.set_xticks(x_pos)
+ax2.set_xticklabels(df_errors_sorted['digit'])
+ax2.legend()
+ax2.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Stampa statistiche dettagliate
+print("CLASSIFICA DIFFICOLTÀ CIFRE (dal più difficile):")
+print("-" * 70)
+for i, row in df_errors_sorted.iterrows():
+    print(f"{row['digit']}: {row['error_rate']*100:5.1f}% errori "
+          f"({row['errors']:3d}/{row['total_samples']:4d}) - "
+          f"Acc: {row['accuracy']:.3f} - "
+          f"Conf_OK: {row['avg_confidence_correct']:.3f} - "
+          f"Conf_ERR: {row['avg_confidence_errors']:.3f}")
+
+# %% [markdown]
+# ### Grafico 3: Top 6 Coppie di Confusioni con Esempi Reali
+# 
+# Questo grafico identifica le 6 coppie di cifre più frequentemente confuse dal modello e mostra esempi reali di questi errori. L'analisi visuale permette di comprendere le similitudini morfologiche che causano le confusioni e fornisce insights qualitativi sui limiti percettivi del modello.
 
 # %%
-# Visualizzazione delle coppie di cifre più confuse
+# Identificazione coppie di cifre più confuse
 confusion_pairs = []
 for i in range(10):
     for j in range(10):
@@ -923,46 +1071,84 @@ for i in range(10):
                 'true_digit': i,
                 'predicted_digit': j,
                 'count': cm[i, j],
-                'percentage': cm[i, j] / np.sum(cm[i, :]) * 100
+                'percentage_of_true': cm[i, j] / np.sum(cm[i, :]) * 100,
+                'percentage_of_predicted': cm[i, j] / np.sum(cm[:, j]) * 100
             })
 
-df_confusion = pd.DataFrame(confusion_pairs)
-df_confusion_sorted = df_confusion.sort_values('count', ascending=False).head(10)
+# Ordinamento e selezione top 6
+df_confusions = pd.DataFrame(confusion_pairs)
+top_6_confusions = df_confusions.nlargest(6, 'count')
 
-print("\nLe 10 coppie di cifre più confuse:")
-for _, row in df_confusion_sorted.iterrows():
-    print(f"{row['true_digit']} → {row['predicted_digit']}: {row['count']} errori ({row['percentage']:.1f}%)")
+print("TOP 6 COPPIE DI CIFRE PIÙ CONFUSE:")
+print("-" * 60)
+for idx, row in top_6_confusions.iterrows():
+    print(f"{row['true_digit']} → {row['predicted_digit']}: "
+          f"{row['count']} errori ({row['percentage_of_true']:.1f}% del {row['true_digit']})")
 
-# %%
-# Visualizzazione esempi di cifre classificate erroneamente
-fig, axes = plt.subplots(4, 5, figsize=(15, 12))
-axes = axes.ravel()
+# Visualizzazione esempi per ogni coppia di confusione
+fig, axes = plt.subplots(6, 5, figsize=(15, 18))
+fig.suptitle('Top 6 Coppie di Confusioni - Esempi Reali di Errori', fontsize=16, y=0.98)
 
-example_idx = 0
-for _, conf_pair in df_confusion_sorted.head(4).iterrows():
-    true_digit = conf_pair['true_digit']
-    pred_digit = conf_pair['predicted_digit']
+for conf_idx, (_, confusion_row) in enumerate(top_6_confusions.iterrows()):
+    true_digit = confusion_row['true_digit']
+    pred_digit = confusion_row['predicted_digit']
     
-    # Trovo esempi di questo tipo di errore
+    # Trova esempi di questo specifico errore
     error_mask = (mnist_te_labels == true_digit) & (y_pred == pred_digit)
     error_indices = np.where(error_mask)[0]
     
-    # Mostro fino a 5 esempi per ogni coppia
-    for i in range(min(5, len(error_indices))):
-        if example_idx < 20:
-            idx = error_indices[i]
-            axes[example_idx].imshow(mnist_te_data[idx], cmap='gray')
-            axes[example_idx].set_title(f'Vero: {true_digit}, Predetto: {pred_digit}', fontsize=10)
-            axes[example_idx].axis('off')
-            example_idx += 1
+    # Calcola confidenze per questo tipo di errore
+    error_confidences = []
+    for idx in error_indices:
+        confidence = y_pred_proba[idx, pred_digit]
+        error_confidences.append((idx, confidence))
+    
+    # Ordina per confidenza decrescente e prendi i primi 5
+    error_confidences.sort(key=lambda x: x[1], reverse=True)
+    selected_examples = error_confidences[:5]
+    
+    # Visualizza i 5 esempi
+    for example_idx, (img_idx, confidence) in enumerate(selected_examples):
+        ax = axes[conf_idx, example_idx]
+        ax.imshow(mnist_te_data[img_idx], cmap='gray')
+        ax.set_title(f'Conf: {confidence:.3f}', fontsize=10)
+        ax.axis('off')
+    
+    # Etichetta per la riga
+    axes[conf_idx, 0].text(-0.1, 0.5, f'{true_digit}→{pred_digit}\n({confusion_row["count"]} err.)', 
+                          transform=axes[conf_idx, 0].transAxes, 
+                          fontsize=12, fontweight='bold', 
+                          ha='right', va='center')
 
-# Nascondo assi non utilizzati
-for i in range(example_idx, 20):
-    axes[i].axis('off')
-
-plt.suptitle('Esempi di cifre classificate erroneamente', fontsize=16)
 plt.tight_layout()
 plt.show()
+
+# Analisi quantitativa delle confusioni
+print("\nANALISI QUANTITATIVA CONFUSIONI:")
+print("-" * 50)
+
+# Simmetria delle confusioni
+for _, row in top_6_confusions.iterrows():
+    true_digit = row['true_digit']
+    pred_digit = row['predicted_digit']
+    forward_confusion = cm[true_digit, pred_digit]
+    reverse_confusion = cm[pred_digit, true_digit]
+    
+    symmetry_ratio = min(forward_confusion, reverse_confusion) / max(forward_confusion, reverse_confusion)
+    print(f"Confusione {true_digit}↔{pred_digit}: "
+          f"Simmetria {symmetry_ratio:.2f} "
+          f"({forward_confusion} vs {reverse_confusion} errori)")
+
+# Concentrazione degli errori
+total_top6_errors = top_6_confusions['count'].sum()
+print(f"\nConcentrazione errori:")
+print(f"Top 6 confusioni rappresentano {total_top6_errors}/{total_errors} errori totali "
+      f"({total_top6_errors/total_errors*100:.1f}%)")
+
+# %% [markdown]
+# ### Conclusioni e Insights
+# 
+# [risultati da implementare]
 
 # %% [markdown]
 # ## Punto C: Curve psicometriche - Effetto del rumore
@@ -1519,3 +1705,5 @@ print(f"  • Miglior configurazione: σ = {best_noise}")
 print(f"\nBonus - FashionMNIST:")
 print(f"  • Accuratezza MNIST: {mnist_test_acc:.4f}")
 print(f"  • Accuratezza FashionMNIST: {fashion_test_acc:.4f}")
+
+
