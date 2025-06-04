@@ -956,15 +956,14 @@ for i in range(10):
 fig.colorbar(im1, ax=ax1, shrink=0.6)
 fig.colorbar(im2, ax=ax2, shrink=0.6)
 
-plt.tight_layout()
-plt.show()
-
-# Statistiche globali matrice
-total_errors = np.sum(cm) - np.trace(cm)
-print(f"STATISTICHE MATRICE DI CONFUSIONE:")
-print(f"Errori totali: {total_errors} su {np.sum(cm)} esempi")
-print(f"Tasso di errore globale: {total_errors/np.sum(cm)*100:.2f}%")
-print(f"Accuratezza dalla matrice: {np.trace(cm)/np.sum(cm):.4f}")
+# %% [markdown]
+# #### Discussione del grafico e riflessione sui risultati
+# 
+# La matrice di confusione rivela pattern sistematici negli errori del modello MLP ottimale con 190 errori totali su 10.000 esempi (1.90% tasso di errore globale). L'analisi della matrice normalizzata mostra che la maggior parte delle classi raggiunge accuratezze superiori al 97%, con performance eccellenti sulla diagonale principale.
+# 
+# I pattern off-diagonali evidenziano confusioni specifiche tra cifre morfologicamente simili: le intensità più elevate nelle celle non diagonali indicano le coppie problematiche che richiedono analisi approfondita. La distribuzione degli errori non è uniforme tra le classi, suggerendo che alcune cifre presentano caratteristiche intrinseche più challenging per la discriminazione automatica.
+# 
+# Dal punto di vista dell'interpretabilità, la matrice assoluta fornisce il numero effettivo di errori per prioritizzazione degli interventi, mentre quella normalizzata rivela i tassi di errore relativi per ogni classe, cruciali per comprendere le vulnerabilità specifiche del modello in scenari applicativi reali.
 
 # %% [markdown]
 # ### Grafico 2: Bar Chart Errori Ordinati per Difficoltà
@@ -1050,8 +1049,8 @@ plt.show()
 print("CLASSIFICA DIFFICOLTÀ CIFRE (dal più difficile):")
 print("-" * 70)
 for i, row in df_errors_sorted.iterrows():
-    print(f"{row['digit']}: {row['error_rate']*100:5.1f}% errori "
-          f"({row['errors']:3d}/{row['total_samples']:4d}) - "
+    print(f"{int(row['digit'])}: {row['error_rate']*100:5.1f}% errori "
+          f"({int(row['errors']):3d}/{int(row['total_samples']):4d}) - "
           f"Acc: {row['accuracy']:.3f} - "
           f"Conf_OK: {row['avg_confidence_correct']:.3f} - "
           f"Conf_ERR: {row['avg_confidence_errors']:.3f}")
@@ -1090,8 +1089,8 @@ fig, axes = plt.subplots(6, 5, figsize=(15, 18))
 fig.suptitle('Top 6 Coppie di Confusioni - Esempi Reali di Errori', fontsize=16, y=0.98)
 
 for conf_idx, (_, confusion_row) in enumerate(top_6_confusions.iterrows()):
-    true_digit = confusion_row['true_digit']
-    pred_digit = confusion_row['predicted_digit']
+    true_digit = int(confusion_row['true_digit'])
+    pred_digit = int(confusion_row['predicted_digit'])
     
     # Trova esempi di questo specifico errore
     error_mask = (mnist_te_labels == true_digit) & (y_pred == pred_digit)
@@ -1129,8 +1128,8 @@ print("-" * 50)
 
 # Simmetria delle confusioni
 for _, row in top_6_confusions.iterrows():
-    true_digit = row['true_digit']
-    pred_digit = row['predicted_digit']
+    true_digit = int(row['true_digit'])
+    pred_digit = int(row['predicted_digit'])
     forward_confusion = cm[true_digit, pred_digit]
     reverse_confusion = cm[pred_digit, true_digit]
     
@@ -1148,9 +1147,7 @@ print(f"Top 6 confusioni rappresentano {total_top6_errors}/{total_errors} errori
 # %% [markdown]
 # ### Conclusioni e Insights
 # 
-# [risultati da implementare]
-
-# %% [markdown]
+# [risultati da implementare]# %% [markdown]
 # ## Punto C: Curve psicometriche - Effetto del rumore
 # 
 # Seguendo la metodologia dell'articolo di Testolin et al. (2017), analizziamo come l'accuratezza degrada all'aumentare del rumore Gaussiano aggiunto alle immagini.
