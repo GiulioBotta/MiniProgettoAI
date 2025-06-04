@@ -851,8 +851,7 @@ print(f"Rapporto tempo medio (2S : 1S): {np.mean(rapporto_tempo):.2f}x")
 # - Per *prototipazione rapida e vincoli computazionali* utilizzare MLP(100, lr=0.01) che offre 97.3% accuratezza in <10 secondi
 # - Per *massimizzazione prestazioni senza vincoli temporali* impiegare CNN extended con lr=0.001 ottenendo 98.8% con robustezza superiore 
 # - Per *deployment critico* bilanciare con MLP(250, lr=0.001) che raggiunge 98.1% mantenendo efficienza 4x superiore alle CNN.
-
-# %% [markdown]
+# 
 # ---
 # ## Punto B: Analisi delle cifre più difficili da riconoscere
 # 
@@ -906,8 +905,12 @@ print(f"Overfitting: {train_accuracy - test_accuracy:+.4f}")
 y_pred = mlp_optimal.predict(x_te)
 y_pred_proba = mlp_optimal.predict_proba(x_te)
 
+# Calcolo errori totali
+total_errors = np.sum(y_pred != mnist_te_labels)
+
 print(f"\nPredizioni calcolate su {len(y_pred)} esempi di test")
 print(f"Accuratezza verificata: {np.mean(y_pred == mnist_te_labels):.4f}")
+print(f"Errori totali: {total_errors}")
 
 # %% [markdown]
 # ### Grafico 1: Matrice di Confusione Avanzata
@@ -956,14 +959,17 @@ for i in range(10):
 fig.colorbar(im1, ax=ax1, shrink=0.6)
 fig.colorbar(im2, ax=ax2, shrink=0.6)
 
+plt.tight_layout()
+plt.show()
+
 # %% [markdown]
 # #### Discussione del grafico e riflessione sui risultati
 # 
-# La matrice di confusione rivela pattern sistematici negli errori del modello MLP ottimale con 190 errori totali su 10.000 esempi (1.90% tasso di errore globale). L'analisi della matrice normalizzata mostra che la maggior parte delle classi raggiunge accuratezze superiori al 97%, con performance eccellenti sulla diagonale principale.
+# La matrice di confusione rivela pattern sistematici negli errori del modello MLP ottimale con **190 errori totali** su 10.000 esempi (1.90% tasso di errore globale). L'analisi della matrice normalizzata mostra che la maggior parte delle classi raggiunge accuratezze superiori al 97%, con performance eccellenti sulla diagonale principale che evidenzia la corretta classificazione.
 # 
-# I pattern off-diagonali evidenziano confusioni specifiche tra cifre morfologicamente simili: le intensità più elevate nelle celle non diagonali indicano le coppie problematiche che richiedono analisi approfondita. La distribuzione degli errori non è uniforme tra le classi, suggerendo che alcune cifre presentano caratteristiche intrinseche più challenging per la discriminazione automatica.
+# I **pattern off-diagonali** più significativi emergono nelle confusioni tra cifre morfologicamente simili: le intensità più elevate nelle celle (4→9), (7→2) e (8→3) indicano le coppie problematiche che condividono caratteristiche visive critiche. La distribuzione non uniforme degli errori tra le classi rivela che alcune cifre presentano intrinseca maggiore ambiguità nella rappresentazione manoscritta.
 # 
-# Dal punto di vista dell'interpretabilità, la matrice assoluta fornisce il numero effettivo di errori per prioritizzazione degli interventi, mentre quella normalizzata rivela i tassi di errore relativi per ogni classe, cruciali per comprendere le vulnerabilità specifiche del modello in scenari applicativi reali.
+# Dal punto di vista dell'interpretabilità, la matrice assoluta quantifica l'impatto reale di ogni tipo di errore per prioritizzazione degli interventi correttivi, mentre quella normalizzata rivela i tassi di vulnerabilità relativa per classe, cruciali per comprendere le debolezze specifiche del modello in scenari applicativi dove il costo degli errori varia per tipo di cifra.
 
 # %% [markdown]
 # ### Grafico 2: Bar Chart Errori Ordinati per Difficoltà
@@ -1056,6 +1062,15 @@ for i, row in df_errors_sorted.iterrows():
           f"Conf_ERR: {row['avg_confidence_errors']:.3f}")
 
 # %% [markdown]
+# #### Discussione dei grafici e riflessione sui risultati
+# 
+# L'analisi quantitativa rivela una **gerarchia di difficoltà** ben definita con la cifra **8** che emerge come la più problematica (2.8% errori, 27/974), seguita da **2** (2.5%) e **5** (2.4%), mentre le cifre **0** e **1** si confermano le più facili con tassi di errore inferiori all'1%. Questa distribuzione riflette la complessità intrinseca delle forme: la cifra 8 presenta due loop chiusi che possono confondersi con 3, 6 o 9 a seconda della qualità della scrittura.
+# 
+# L'analisi della **confidenza del modello** rivela pattern cruciali per la calibrazione: le predizioni corrette mantengono confidenze elevate e consistenti (0.990-0.998) per tutte le cifre, mentre le predizioni errate mostrano confidenze significativamente inferiori (0.722-0.845), indicando che il modello "percepisce" internamente l'incertezza anche quando sbaglia. Particolarmente interessante è che le cifre più difficili (8, 2, 5) mostrano le confidenze più basse anche negli errori, suggerendo maggiore consapevolezza dell'ambiguità.
+# 
+# Dal punto di vista applicativo, la correlazione inversa tra confidenza e probabilità di errore (R=-0.73) fornisce un meccanismo naturale di **early warning**: soglie di confidenza <0.80 potrebbero attivare controlli manuali o richieste di re-input, mentre confidenze >0.95 garantiscono affidabilità quasi assoluta. Questo insight è fondamentale per deployment in sistemi critici dove la gestione dell'incertezza è prioritaria.
+
+# %% [markdown]
 # ### Grafico 3: Top 6 Coppie di Confusioni con Esempi Reali
 # 
 # Questo grafico identifica le 6 coppie di cifre più frequentemente confuse dal modello e mostra esempi reali di questi errori. L'analisi visuale permette di comprendere le similitudini morfologiche che causano le confusioni e fornisce insights qualitativi sui limiti percettivi del modello.
@@ -1145,9 +1160,33 @@ print(f"Top 6 confusioni rappresentano {total_top6_errors}/{total_errors} errori
       f"({total_top6_errors/total_errors*100:.1f}%)")
 
 # %% [markdown]
-# ### Conclusioni e Insights
+# #### Discussione del grafico e riflessione sui risultati
 # 
-# [risultati da implementare]# %% [markdown]
+# L'identificazione delle **Top 6 confusioni** rivela pattern morfologici sistematici che il modello MLP fatica a discriminare: la confusione dominante **4→9** (9 errori) riflette la similitudine strutturale quando la connessione verticale del 4 si chiude parzialmente, mentre **7→2** (8 errori) emerge dalla condivisione di stroke orizzontali superiori e curvature che possono apparire ambigue in scritture corsive o imprecise.
+# 
+# L'analisi della **simmetria** delle confusioni fornisce insights sulla natura direzionale degli errori: la coppia **2↔3** mostra perfetta simmetria (1.00) indicando equivalente difficoltà bidirezionale, mentre **8→3** presenta forte asimmetria (0.29) suggerendo che 8 viene facilmente scambiato per 3 ma non viceversa, probabilmente per la presenza di loop inferiore nel 8 che può apparire come curvatura semplice del 3.
+# 
+# La **concentrazione degli errori** è moderata con le Top 6 confusioni che rappresentano solo il 21.6% degli errori totali (41/190), indicando che il modello non soffre di pattern di errore altamente localizzati ma presenta vulnerabilità distribuite. Gli esempi visualizzati confermano che anche le confusioni ad alta confidenza (0.70-0.85) coinvolgono casi effettivamente ambigui dove anche un osservatore umano potrebbe esitare, validando la ragionevolezza degli errori del modello e suggerendo che ulteriori miglioramenti richiederanno architetture più sofisticate o data augmentation mirata.
+
+# %% [markdown]
+# ### Conclusioni
+# 
+# **Architettura di riferimento:**  
+# L'analisi si è basata sul modello **MLP ottimale** (250 neuroni, 1 strato nascosto, learning rate 0.001) che raggiunge **98.10% di accuratezza** con soli 190 errori su 10.000 esempi di test, confermando l'eccellente bilanciamento tra prestazioni e complessità identificato nel Punto A.
+# 
+# **Gerarchia di difficoltà identificata:**  
+# Emerge una chiara stratificazione delle cifre per difficoltà con **8, 2, 5** come le più problematiche (>2.4% errori) a causa della loro complessità morfologica intrinseca, mentre **0, 1** si confermano le più robuste (<1% errori) grazie a forme distintive e non ambigue.
+# 
+# **Pattern di confusione sistematici:**  
+# Le **Top 6 confusioni** rivelano errori concentrati su coppie morfologicamente giustificate (4↔9, 7↔2, 8↔3) con asimmetrie significative che riflettono specificità percettive del modello. La distribuzione moderata degli errori (21.6% concentrati) indica robustezza generale senza vulnerabilità critiche localizzate.
+# 
+# **Meccanismo di calibrazione della confidenza:**  
+# Il modello dimostra eccellente **autoconsapevolezza** con confidenze elevate per predizioni corrette (0.990-0.998) e significativamente ridotte per errori (0.722-0.845), fornendo un naturale meccanismo di early warning utilizzabile in deployment critico con soglie appropriate.
+# 
+# **Implicazioni per il miglioramento:**  
+# I risultati suggeriscono che ulteriori guadagni richiederanno interventi mirati: **data augmentation** per cifre problematiche (8, 2, 5), **fine-tuning** su confusioni specifiche, o **architetture convoluzionali** per catturare invarianze spaziali più sofisticate, dato che gli errori residui coinvolgono casi di genuine ambiguità morfologica.
+
+# %% [markdown]
 # ## Punto C: Curve psicometriche - Effetto del rumore
 # 
 # Seguendo la metodologia dell'articolo di Testolin et al. (2017), analizziamo come l'accuratezza degrada all'aumentare del rumore Gaussiano aggiunto alle immagini.
@@ -1272,7 +1311,7 @@ for percentage in train_percentages:
     x_tr_reduced = x_tr[indices]
     y_tr_reduced = mnist_tr_labels[indices]
     
-    print(f"Samples utilizzati: {len(indices)} / {len(x_tr)}")
+    print(f"Samples utilizzati: {len(indices)} su {len(x_tr)}")
     
     # Training MLP
     mlp_reduced = MLPClassifier(
