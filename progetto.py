@@ -1266,11 +1266,14 @@ print(f"CNN - Training time: {cnn_training_time:.1f}s, Clean accuracy: {cnn_clea
 
 # %%
 def add_gaussian_noise(images, noise_std):
+    """Aggiunge rumore Gaussiano alle immagini."""
+    np.random.seed(42)  # Per riproducibilità
     noise = np.random.normal(0, noise_std, images.shape)
     noisy_images = images + noise
     return np.clip(noisy_images, 0, 1)
 
 def test_model_robustezza(model, x_test, y_test, noise_levels, is_cnn=False):
+    """Testa la robustezza di un modello a diversi livelli di rumore."""
     accuracies = []
     
     for noise_std in noise_levels:
@@ -1279,35 +1282,31 @@ def test_model_robustezza(model, x_test, y_test, noise_levels, is_cnn=False):
         
         # Calcola accuratezza
         if is_cnn:
+            # Per CNN, rimodella in formato 4D se necessario
+            if len(x_noisy.shape) == 2:
+                x_noisy = x_noisy.reshape(-1, 28, 28, 1)
             _, acc = model.evaluate(x_noisy, y_test, verbose=0)
         else:
+            # Per MLP, assicura formato 2D
+            if len(x_noisy.shape) == 4:
+                x_noisy = x_noisy.reshape(x_noisy.shape[0], -1)
             acc = model.score(x_noisy, y_test)
         
         accuracies.append(acc)
     
     return accuracies
 
-def stampa_risultati_robustezza(noise_levels, acc_mlp, acc_cnn):
-    print("\nRISULTATI ROBUSTEZZA AL RUMORE:")
-    print("-" * 50)
-    print("Noise σ  | MLP Acc | CNN Acc | Differenza")
-    print("-" * 50)
-    
-    for noise, mlp_acc, cnn_acc in zip(noise_levels, acc_mlp, acc_cnn):
-        diff = cnn_acc - mlp_acc
-        print(f"{noise:6.2f} | {mlp_acc:7.4f} | {cnn_acc:7.4f} | {diff:+8.4f}")
-
 # %% [markdown]
 # ### Configurazione esperimento robustezza
 # 
-# **Range di rumore:** 0.00-0.30 con step 0.02 per catturare la degradazione graduale nelle zone critiche  
-# **Subset di test:** 3000 campioni stratificati per bilanciare velocità computazionale e rappresentatività statistica  
+# **Range di rumore:** 0.00-0.45 con step 0.05 per catturare degradazioni significative  
+# **Subset di test:** 2000 campioni stratificati per bilanciare velocità computazionale e rappresentatività statistica  
 # **Metriche:** Accuratezza per livello di rumore globale e per singola classe per identificare vulnerabilità specifiche
 
 # %%
-# Configurazione esperimento
-noise_levels = np.arange(0.00, 0.32, 0.02)  # Range più focalizzato sulla zona critica
-subset_size = 3000  # Aumentato per migliore rappresentatività
+# Configurazione esperimento con range esteso
+noise_levels = np.arange(0.00, 0.50, 0.05)  # Range esteso fino a 0.50
+subset_size = 2000  # Ridotto per velocità ma mantenendo rappresentatività
 
 # Campionamento stratificato per mantenere bilanciamento classi
 indices_stratificati = []
@@ -1319,7 +1318,6 @@ for digit in range(10):
 
 indices_stratificati = np.array(indices_stratificati)
 x_te_subset = x_te[indices_stratificati]
-x_te_conv_subset = x_te_conv[indices_stratificati] 
 y_te_subset = mnist_te_labels[indices_stratificati]
 
 print(f"Subset stratificato: {len(indices_stratificati)} campioni")
@@ -1330,30 +1328,37 @@ print(f"Livelli testati: {len(noise_levels)}")
 # ### Calcolo curve psicometriche sistematiche
 
 # %%
+# Test robustezza modelli
+print("\nCalcolo robustezza modelli...")
+
 # Test robustezza MLP
-print("\nCalcolo robustezza MLP...")
+print("Testing MLP...")
 accuracies_mlp = test_model_robustezza(
     mlp_robustezza, x_te_subset, y_te_subset, noise_levels, is_cnn=False
 )
 
 # Test robustezza CNN  
-print("Calcolo robustezza CNN...")
+print("Testing CNN...")
 accuracies_cnn = test_model_robustezza(
-    cnn_robustezza, x_te_conv_subset, y_te_subset, noise_levels, is_cnn=True
+    cnn_robustezza, x_te_subset, y_te_subset, noise_levels, is_cnn=True
 )
 
 # Stampa risultati tabulari
-stampa_risultati_robustezza(noise_levels, accuracies_mlp, accuracies_cnn)
+print("\nRISULTATI ROBUSTEZZA AL RUMORE:")
+print("-" * 50)
+print("Noise σ  | MLP Acc | CNN Acc | Differenza")
+print("-" * 50)
+
+for noise, mlp_acc, cnn_acc in zip(noise_levels, accuracies_mlp, accuracies_cnn):
+    diff = cnn_acc - mlp_acc
+    print(f"{noise:6.2f} | {mlp_acc:7.4f} | {cnn_acc:7.4f} | {diff:+8.4f}")
 
 # Calcolo metriche aggregate
 auc_mlp = np.trapz(accuracies_mlp, noise_levels)
 auc_cnn = np.trapz(accuracies_cnn, noise_levels)
-degradazione_50_mlp = accuracies_mlp[0] - accuracies_mlp[len(noise_levels)//2]
-degradazione_50_cnn = accuracies_cnn[0] - accuracies_cnn[len(noise_levels)//2]
 
 print(f"\nMETRICHE AGGREGATE:")
 print(f"AUC MLP: {auc_mlp:.3f} | AUC CNN: {auc_cnn:.3f} | Rapporto: {auc_cnn/auc_mlp:.3f}")
-print(f"Degradazione @ 50% range - MLP: {degradazione_50_mlp:.3f} | CNN: {degradazione_50_cnn:.3f}")
 
 # %% [markdown]
 # ### Analisi robustezza per singola classe
@@ -1381,9 +1386,13 @@ def calcola_robustezza_per_classe(model, x_test, y_test, noise_levels, is_cnn=Fa
             x_noisy = add_gaussian_noise(x_digit, noise_std)
             
             if is_cnn:
+                if len(x_noisy.shape) == 2:
+                    x_noisy = x_noisy.reshape(-1, 28, 28, 1)
                 y_pred = model.predict(x_noisy, verbose=0)
                 y_pred_classes = np.argmax(y_pred, axis=1)
             else:
+                if len(x_noisy.shape) == 4:
+                    x_noisy = x_noisy.reshape(x_noisy.shape[0], -1)
                 y_pred_classes = model.predict(x_noisy)
             
             acc = np.mean(y_pred_classes == y_digit)
@@ -1395,228 +1404,201 @@ def calcola_robustezza_per_classe(model, x_test, y_test, noise_levels, is_cnn=Fa
 
 print("Calcolo robustezza per singola classe...")
 
-# Analisi per classe MLP
+# Analisi per classe
 robustezza_mlp_per_classe = calcola_robustezza_per_classe(
     mlp_robustezza, x_te_subset, y_te_subset, noise_levels, is_cnn=False
 )
 
-# Analisi per classe CNN
 robustezza_cnn_per_classe = calcola_robustezza_per_classe(
-    cnn_robustezza, x_te_conv_subset, y_te_subset, noise_levels, is_cnn=True
+    cnn_robustezza, x_te_subset, y_te_subset, noise_levels, is_cnn=True
 )
 
 print("Analisi per classe completata.")
 
 # %% [markdown]
-# ### Grafico 1: Heatmap Degradazione per Classe
+# ### Grafico 1: Curve Psicometriche Principali
 # 
-# Questo grafico visualizza come ogni cifra (0-9) degrada progressivamente all'aumentare del rumore, permettendo di identificare immediatamente le classi più vulnerabili e i livelli critici di rumore. La heatmap rivela pattern di robustezza classe-specifici fondamentali per comprendere i punti deboli dei modelli.
+# Questo grafico presenta il confronto diretto tra MLP e CNN in termini di robustezza al rumore, mostrando sia l'accuratezza assoluta che la degradazione relativa. La visualizzazione permette di identificare immediatamente quale architettura mantiene prestazioni superiori all'aumentare del rumore e a quali soglie critiche si verificano i crolli prestazionali.
 
 # %%
-# Preparazione dati per heatmap
-def prepara_dati_heatmap(robustezza_per_classe, noise_levels):
-    """Converte risultati robustezza in matrice per heatmap."""
-    heatmap_data = np.zeros((10, len(noise_levels)))
-    
-    for digit in range(10):
-        if digit in robustezza_per_classe:
-            heatmap_data[digit, :] = robustezza_per_classe[digit]
-    
-    return heatmap_data
+# Grafico 1: Curve Psicometriche Principali
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
-# Preparazione matrici heatmap
-heatmap_mlp = prepara_dati_heatmap(robustezza_mlp_per_classe, noise_levels)
-heatmap_cnn = prepara_dati_heatmap(robustezza_cnn_per_classe, noise_levels)
+# Subplot 1: Confronto diretto MLP vs CNN
+ax1.plot(noise_levels, accuracies_mlp, 'o-', linewidth=3, markersize=8, 
+         color='blue', label='MLP Ottimale', alpha=0.8)
+ax1.plot(noise_levels, accuracies_cnn, 's-', linewidth=3, markersize=8, 
+         color='red', label='CNN Ottimale', alpha=0.8)
 
-# Visualizzazione heatmap comparative
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+ax1.set_xlabel('Deviazione Standard del Rumore (σ)', fontsize=12)
+ax1.set_ylabel('Accuratezza', fontsize=12)
+ax1.set_title('Curve Psicometriche: Robustezza al Rumore\nMLP vs CNN', fontsize=14)
+ax1.legend(fontsize=12)
+ax1.grid(True, alpha=0.3)
+ax1.set_ylim(0, 1.05)
 
-# Heatmap MLP
-im1 = ax1.imshow(heatmap_mlp, cmap='RdYlBu_r', aspect='auto', vmin=0, vmax=1)
-ax1.set_xlabel('Livello di Rumore', fontsize=12)
-ax1.set_ylabel('Cifra', fontsize=12)
-ax1.set_title('Degradazione per Classe - MLP Ottimale\n(Rosso=Vulnerabile, Blu=Robusto)', fontsize=14)
+# Annotazioni per punti critici - Soglia 90%
+for i, (noise, acc_mlp, acc_cnn) in enumerate(zip(noise_levels, accuracies_mlp, accuracies_cnn)):
+    if acc_mlp < 0.9 and i > 0 and accuracies_mlp[i-1] >= 0.9:
+        ax1.axvline(x=noise, color='blue', linestyle='--', alpha=0.7)
+        ax1.text(noise, 0.92, f'MLP<90%\nσ={noise:.2f}', 
+                ha='center', va='bottom', fontsize=10, color='blue',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="lightblue", alpha=0.7))
+        break
 
-# Configurazione asse x per noise levels
-noise_ticks = np.arange(0, len(noise_levels), 3)
-ax1.set_xticks(noise_ticks)
-ax1.set_xticklabels([f'{noise_levels[i]:.2f}' for i in noise_ticks])
-ax1.set_yticks(range(10))
-ax1.set_yticklabels([f'Cifra {i}' for i in range(10)])
+for i, (noise, acc_mlp, acc_cnn) in enumerate(zip(noise_levels, accuracies_mlp, accuracies_cnn)):
+    if acc_cnn < 0.9 and i > 0 and accuracies_cnn[i-1] >= 0.9:
+        ax1.axvline(x=noise, color='red', linestyle='--', alpha=0.7)
+        ax1.text(noise, 0.85, f'CNN<90%\nσ={noise:.2f}', 
+                ha='center', va='bottom', fontsize=10, color='red',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="lightcoral", alpha=0.7))
+        break
 
-# Heatmap CNN
-im2 = ax2.imshow(heatmap_cnn, cmap='RdYlBu_r', aspect='auto', vmin=0, vmax=1)
-ax2.set_xlabel('Livello di Rumore', fontsize=12)
-ax2.set_ylabel('Cifra', fontsize=12)
-ax2.set_title('Degradazione per Classe - CNN Ottimale\n(Rosso=Vulnerabile, Blu=Robusto)', fontsize=14)
+# Subplot 2: Degradazione relativa
+degradazione_mlp = [(accuracies_mlp[0] - acc) / accuracies_mlp[0] * 100 for acc in accuracies_mlp]
+degradazione_cnn = [(accuracies_cnn[0] - acc) / accuracies_cnn[0] * 100 for acc in accuracies_cnn]
 
-# Configurazione asse x per noise levels
-ax2.set_xticks(noise_ticks)
-ax2.set_xticklabels([f'{noise_levels[i]:.2f}' for i in noise_ticks])
-ax2.set_yticks(range(10))
-ax2.set_yticklabels([f'Cifra {i}' for i in range(10)])
+ax2.plot(noise_levels, degradazione_mlp, 'o-', linewidth=3, markersize=8, 
+         color='blue', label='MLP Ottimale', alpha=0.8)
+ax2.plot(noise_levels, degradazione_cnn, 's-', linewidth=3, markersize=8, 
+         color='red', label='CNN Ottimale', alpha=0.8)
 
-# Colorbar condivisa
-fig.subplots_adjust(right=0.85)
-cbar_ax = fig.add_axes([0.87, 0.15, 0.02, 0.7])
-cbar = fig.colorbar(im1, cax=cbar_ax)
-cbar.set_label('Accuratezza', rotation=270, labelpad=20, fontsize=12)
-
-# Annotazioni statistiche
-for ax, heatmap, model_name in [(ax1, heatmap_mlp, 'MLP'), (ax2, heatmap_cnn, 'CNN')]:
-    # Identifica classe più robusta e più vulnerabile
-    robustezza_media = np.mean(heatmap, axis=1)
-    classe_piu_robusta = np.argmax(robustezza_media)
-    classe_piu_vulnerabile = np.argmin(robustezza_media)
-    
-    # Aggiungi annotazioni
-    ax.text(0.02, 0.98, f'Più robusta: Cifra {classe_piu_robusta}', 
-            transform=ax.transAxes, bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgreen", alpha=0.7),
-            fontsize=10, verticalalignment='top')
-    ax.text(0.02, 0.88, f'Più vulnerabile: Cifra {classe_piu_vulnerabile}', 
-            transform=ax.transAxes, bbox=dict(boxstyle="round,pad=0.3", facecolor="lightcoral", alpha=0.7),
-            fontsize=10, verticalalignment='top')
+ax2.set_xlabel('Deviazione Standard del Rumore (σ)', fontsize=12)
+ax2.set_ylabel('Degradazione Relativa (%)', fontsize=12)
+ax2.set_title('Degradazione Relativa delle Prestazioni\n(% rispetto a condizioni pulite)', fontsize=14)
+ax2.legend(fontsize=12)
+ax2.grid(True, alpha=0.3)
 
 plt.tight_layout()
 plt.show()
 
-# Analisi quantitativa degradazione
+# %% [markdown]
+# #### Discussione del grafico e riflessione sui risultati
+# 
+# Le curve psicometriche rivelano comportamenti distintivi tra le architetture: il confronto diretto mostra come [discussione basata sui risultati specifici]. La degradazione relativa evidenzia [pattern di resilienza specifici]. Le soglie critiche identificate forniscono riferimenti operativi cruciali per deployment in ambienti con livelli di rumore variabili.
+
+# %% [markdown]
+# ### Grafico 2: Robustezza per Singola Classe
+# 
+# Questo grafico visualizza come ogni cifra (0-9) degrada progressivamente all'aumentare del rumore per entrambe le architetture. La visualizzazione a linee multiple permette di identificare immediatamente le classi più vulnerabili e confrontare i pattern di robustezza classe-specifici tra MLP e CNN.
+
+# %%
+# Grafico 2: Robustezza per Singola Classe (Line Plot)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
+
+# Subplot 1: MLP per classe
+colors_mlp = plt.cm.tab10(np.linspace(0, 1, 10))
+for digit in range(10):
+    if digit in robustezza_mlp_per_classe:
+        ax1.plot(noise_levels, robustezza_mlp_per_classe[digit], 
+                'o-', color=colors_mlp[digit], label=f'Cifra {digit}', 
+                linewidth=2, markersize=5, alpha=0.8)
+
+ax1.set_xlabel('Deviazione Standard del Rumore (σ)', fontsize=12)
+ax1.set_ylabel('Accuratezza per Classe', fontsize=12)
+ax1.set_title('Robustezza per Classe - MLP Ottimale', fontsize=14)
+ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=10)
+ax1.grid(True, alpha=0.3)
+ax1.set_ylim(0, 1.05)
+
+# Subplot 2: CNN per classe
+colors_cnn = plt.cm.tab10(np.linspace(0, 1, 10))
+for digit in range(10):
+    if digit in robustezza_cnn_per_classe:
+        ax2.plot(noise_levels, robustezza_cnn_per_classe[digit], 
+                's-', color=colors_cnn[digit], label=f'Cifra {digit}', 
+                linewidth=2, markersize=5, alpha=0.8)
+
+ax2.set_xlabel('Deviazione Standard del Rumore (σ)', fontsize=12)
+ax2.set_ylabel('Accuratezza per Classe', fontsize=12)
+ax2.set_title('Robustezza per Classe - CNN Ottimale', fontsize=14)
+ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=10)
+ax2.grid(True, alpha=0.3)
+ax2.set_ylim(0, 1.05)
+
+plt.tight_layout()
+plt.show()
+
+# Analisi quantitativa degradazione per classe
 print("\nANALISI DEGRADAZIONE PER CLASSE:")
-print("-" * 60)
+print("-" * 70)
+print("Cifra | MLP: Clean->Final (Δ) | CNN: Clean->Final (Δ) | CNN Vantaggio")
+print("-" * 70)
 
 for digit in range(10):
     if digit in robustezza_mlp_per_classe and digit in robustezza_cnn_per_classe:
-        # Degradazione dal pulito al massimo rumore
-        deg_mlp = robustezza_mlp_per_classe[digit][0] - robustezza_mlp_per_classe[digit][-1]
-        deg_cnn = robustezza_cnn_per_classe[digit][0] - robustezza_cnn_per_classe[digit][-1]
+        mlp_clean = robustezza_mlp_per_classe[digit][0]
+        mlp_final = robustezza_mlp_per_classe[digit][-1]
+        mlp_deg = mlp_clean - mlp_final
         
-        # Robustezza media
-        rob_mlp = np.mean(robustezza_mlp_per_classe[digit])
-        rob_cnn = np.mean(robustezza_cnn_per_classe[digit])
+        cnn_clean = robustezza_cnn_per_classe[digit][0]
+        cnn_final = robustezza_cnn_per_classe[digit][-1]
+        cnn_deg = cnn_clean - cnn_final
         
-        print(f"Cifra {digit}: Degradazione MLP={deg_mlp:.3f} CNN={deg_cnn:.3f} | "
-              f"Robustezza Media MLP={rob_mlp:.3f} CNN={rob_cnn:.3f}")
+        vantaggio = mlp_deg - cnn_deg
+        
+        print(f"  {digit}   | {mlp_clean:.3f}->{mlp_final:.3f} ({mlp_deg:+.3f}) | "
+              f"{cnn_clean:.3f}->{cnn_final:.3f} ({cnn_deg:+.3f}) | {vantaggio:+.3f}")
 
 # %% [markdown]
-# ### Grafico 2: Visual Noise Examples - Grid Progressiva
+# #### Discussione del grafico e riflessione sui risultati
+#
+# L'analisi per singola classe rivela pattern di vulnerabilità [specifici in base ai risultati]. Le cifre più problematiche mostrano [descrizione pattern]. La comparazione tra architetture evidenzia che [confronto MLP vs CNN per robustezza classe-specifica]. Questi insights sono cruciali per comprendere quali tipi di errori potrebbero emergere in condizioni di rumore reale.
+
+# %% [markdown]
+# ### Grafico 3: Esempio Visivo dell'Effetto del Rumore
 # 
-# Questa visualizzazione mostra l'effetto progressivo del rumore Gaussiano su esempi reali di ciascuna cifra, permettendo di comprendere visivamente a quale livello di corruzione le immagini diventano ambigue anche per l'osservatore umano. La griglia facilita la comparazione diretta dell'impatto del rumore across diverse forme numeriche.
+# Questa visualizzazione mostra l'effetto progressivo del rumore Gaussiano su un esempio reale, permettendo di comprendere visivamente a quale livello di corruzione le immagini diventano ambigue anche per l'osservatore umano. Include le predizioni di entrambi i modelli per validare l'allineamento con la percezione umana.
 
 # %%
-# Selezione esempi rappresentativi per visualizzazione
-def seleziona_esempi_per_visualizzazione(x_test, y_test, n_per_classe=1):
-    """Seleziona esempi rappresentativi di ogni cifra per visualizzazione rumore."""
-    esempi_selezionati = {}
+# Grafico 3: Esempio Visivo del Rumore
+# Selezione di un singolo esempio per visualizzazione
+esempio_idx = np.where(y_te_subset == 8)[0][0]  # Cifra 8 come esempio
+esempio_img = x_te_subset[esempio_idx]
+
+# Livelli di rumore selezionati per visualizzazione
+noise_demo_levels = [0.0, 0.1, 0.2, 0.3, 0.4]
+
+fig, axes = plt.subplots(1, len(noise_demo_levels), figsize=(15, 3))
+fig.suptitle('Effetto Progressivo del Rumore Gaussiano (Cifra 8)', fontsize=14, y=1.05)
+
+for i, noise_std in enumerate(noise_demo_levels):
+    if noise_std == 0:
+        noisy_img = esempio_img
+    else:
+        noisy_img = add_gaussian_noise(esempio_img.reshape(1, -1), noise_std)[0]
     
-    for digit in range(10):
-        mask = y_test == digit
-        indices_digit = np.where(mask)[0]
-        
-        if len(indices_digit) > 0:
-            # Seleziona il primo esempio di ogni classe
-            esempio_idx = indices_digit[0]
-            esempi_selezionati[digit] = {
-                'index': esempio_idx,
-                'image': x_test[esempio_idx],
-                'label': digit
-            }
+    # Test predizioni
+    img_2d = noisy_img.reshape(1, -1)
+    img_4d = img_2d.reshape(1, 28, 28, 1)
     
-    return esempi_selezionati
-
-# Selezione esempi
-esempi_cifre = seleziona_esempi_per_visualizzazione(x_te_subset, y_te_subset)
-
-# Configurazione livelli di rumore per visualizzazione
-noise_examples = [0.00, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
-print(f"Visualizzazione progressive con {len(noise_examples)} livelli di rumore")
-
-# Creazione grid di visualizzazione
-fig, axes = plt.subplots(10, len(noise_examples), figsize=(18, 24))
-fig.suptitle('Effetto Progressivo del Rumore Gaussiano per Classe', fontsize=16, y=0.98)
-
-for digit in range(10):
-    if digit in esempi_cifre:
-        original_image = esempi_cifre[digit]['image']
-        
-        for j, noise_std in enumerate(noise_examples):
-            # Genera immagine rumorosa
-            if noise_std == 0:
-                noisy_image = original_image
-            else:
-                noisy_image = add_gaussian_noise(original_image.reshape(1, -1), noise_std)[0]
-            
-            # Visualizza
-            ax = axes[digit, j]
-            ax.imshow(noisy_image.reshape(28, 28), cmap='gray', vmin=0, vmax=1)
-            
-            # Titoli solo per prima riga
-            if digit == 0:
-                ax.set_title(f'σ = {noise_std:.2f}', fontsize=12, fontweight='bold')
-            
-            # Etichette solo per prima colonna
-            if j == 0:
-                ax.set_ylabel(f'Cifra {digit}', fontsize=12, fontweight='bold')
-            
-            ax.set_xticks([])
-            ax.set_yticks([])
-            
-            # Bordo colorato in base alla degradazione per quella cifra
-            if digit in robustezza_mlp_per_classe:
-                noise_idx = min(j, len(noise_levels)-1)
-                acc_at_noise = robustezza_mlp_per_classe[digit][noise_idx]
-                
-                # Colore bordo basato su accuratezza
-                if acc_at_noise > 0.9:
-                    border_color = 'green'
-                elif acc_at_noise > 0.7:
-                    border_color = 'orange'
-                else:
-                    border_color = 'red'
-                
-                for spine in ax.spines.values():
-                    spine.set_edgecolor(border_color)
-                    spine.set_linewidth(2)
-
-# Aggiunta legenda per colori bordi
-legend_elements = [
-    plt.Rectangle((0,0),1,1, facecolor='white', edgecolor='green', linewidth=2, label='Acc > 90%'),
-    plt.Rectangle((0,0),1,1, facecolor='white', edgecolor='orange', linewidth=2, label='70% < Acc ≤ 90%'),
-    plt.Rectangle((0,0),1,1, facecolor='white', edgecolor='red', linewidth=2, label='Acc ≤ 70%')
-]
-
-fig.legend(handles=legend_elements, loc='lower center', ncol=3, 
-           bbox_to_anchor=(0.5, 0.02), fontsize=12,
-           title='Prestazioni MLP a livello di rumore corrispondente')
+    pred_mlp = mlp_robustezza.predict(img_2d)[0]
+    prob_mlp = np.max(mlp_robustezza.predict_proba(img_2d))
+    
+    pred_cnn = np.argmax(cnn_robustezza.predict(img_4d, verbose=0))
+    prob_cnn = np.max(cnn_robustezza.predict(img_4d, verbose=0))
+    
+    # Visualizzazione
+    ax = axes[i]
+    ax.imshow(noisy_img.reshape(28, 28), cmap='gray', vmin=0, vmax=1)
+    ax.set_title(f'σ = {noise_std:.1f}', fontsize=12, fontweight='bold')
+    ax.axis('off')
+    
+    # Annotazioni predizioni
+    status_mlp = "✓" if pred_mlp == 8 else "✗"
+    status_cnn = "✓" if pred_cnn == 8 else "✗"
+    
+    ax.text(0.5, -0.1, f'MLP: {pred_mlp}({prob_mlp:.2f}){status_mlp}\nCNN: {pred_cnn}({prob_cnn:.2f}){status_cnn}', 
+            transform=ax.transAxes, ha='center', va='top', fontsize=10,
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
 
 plt.tight_layout()
-plt.subplots_adjust(bottom=0.08, top=0.95)
 plt.show()
 
-# Test predizioni su esempi rumorosi per validazione visuale
-print("\nVALIDAZIONE PREDIZIONI SU ESEMPI VISUALIZZATI:")
-print("-" * 60)
-
-for digit in [0, 1, 5, 8]:  # Campione rappresentativo
-    if digit in esempi_cifre:
-        original_image = esempi_cifre[digit]['image']
-        print(f"\nCifra {digit}:")
-        
-        for noise_std in [0.0, 0.1, 0.2, 0.3]:
-            noisy_image = add_gaussian_noise(original_image.reshape(1, -1), noise_std)
-            
-            # Predizione MLP
-            pred_mlp = mlp_robustezza.predict(noisy_image)[0]
-            prob_mlp = np.max(mlp_robustezza.predict_proba(noisy_image))
-            
-            # Predizione CNN
-            pred_cnn = np.argmax(cnn_robustezza.predict(noisy_image.reshape(1, 28, 28, 1), verbose=0))
-            prob_cnn = np.max(cnn_robustezza.predict(noisy_image.reshape(1, 28, 28, 1), verbose=0))
-            
-            status_mlp = "✓" if pred_mlp == digit else "✗"
-            status_cnn = "✓" if pred_cnn == digit else "✗"
-            
-            print(f"  σ={noise_std:.1f}: MLP→{pred_mlp}({prob_mlp:.3f}){status_mlp} | "
-                  f"CNN→{pred_cnn}({prob_cnn:.3f}){status_cnn}")
+# %% [markdown]
+# #### Discussione del grafico e riflessione sui risultati
+#
+# L'esempio visivo della cifra 8 con rumore progressivo dimostra [allineamento/disallineamento con percezione umana]. Le predizioni dei modelli mostrano [pattern di degradazione delle confidenze]. Il confronto MLP vs CNN rivela [differenze comportamentali specifiche] che si allineano con i risultati quantitativi delle curve psicometriche.
 
 # %% [markdown]
 # ### Analisi comparativa robustezza
@@ -1628,15 +1610,12 @@ for digit in [0, 1, 5, 8]:  # Campione rappresentativo
 def trova_soglie_critiche(noise_levels, accuracies, soglie=[0.95, 0.9, 0.8, 0.7]):
     """Trova i livelli di rumore corrispondenti a soglie di accuratezza specifiche."""
     soglie_rumore = {}
-    
     for soglia in soglie:
-        # Trova primo punto dove accuratezza scende sotto soglia
         idx_soglia = np.where(np.array(accuracies) < soglia)[0]
         if len(idx_soglia) > 0:
             soglie_rumore[soglia] = noise_levels[idx_soglia[0]]
         else:
             soglie_rumore[soglia] = None
-    
     return soglie_rumore
 
 # Calcolo soglie critiche
@@ -1649,60 +1628,49 @@ print("Accuratezza | MLP σ-critical | CNN σ-critical | Vantaggio CNN")
 print("-" * 50)
 
 for soglia in [0.95, 0.9, 0.8, 0.7]:
-    mlp_noise = soglie_mlp.get(soglia, '>0.30')
-    cnn_noise = soglie_cnn.get(soglia, '>0.30')
+    mlp_noise = soglie_mlp.get(soglia, '>0.45')
+    cnn_noise = soglie_cnn.get(soglia, '>0.45')
     
     if isinstance(mlp_noise, (int, float)) and isinstance(cnn_noise, (int, float)):
-        vantaggio = f"{cnn_noise - mlp_noise:+.3f}"
+        vantaggio = cnn_noise - mlp_noise
+        vantaggio_str = f"{vantaggio:+.2f}"
     else:
-        vantaggio = "N/A"
+        vantaggio_str = "N/A"
     
-    print(f"    {soglia:4.1f}   |     {mlp_noise}      |     {cnn_noise}      |     {vantaggio}")
+    print(f"    {soglia:4.1f}   |      {mlp_noise}     |      {cnn_noise}     |      {vantaggio_str}")
 
-# Calcolo punto di crossover (se esiste)
-crossover_point = None
-for i, (acc_mlp, acc_cnn) in enumerate(zip(accuracies_mlp, accuracies_cnn)):
-    if acc_cnn < acc_mlp:
-        crossover_point = noise_levels[i]
-        break
+# Tasso di degradazione
+tasso_degradazione_mlp = (accuracies_mlp[0] - accuracies_mlp[-1]) / (noise_levels[-1] - noise_levels[0])
+tasso_degradazione_cnn = (accuracies_cnn[0] - accuracies_cnn[-1]) / (noise_levels[-1] - noise_levels[0])
 
-if crossover_point:
-    print(f"\nPunto di crossover (CNN < MLP): σ = {crossover_point:.3f}")
+print(f"\nTASSO DI DEGRADAZIONE (Δ Acc / Δ σ):")
+print(f"MLP: {tasso_degradazione_mlp:.4f} acc/σ")
+print(f"CNN: {tasso_degradazione_cnn:.4f} acc/σ") 
+
+if tasso_degradazione_cnn < tasso_degradazione_mlp:
+    rapporto_resilienza = tasso_degradazione_mlp / tasso_degradazione_cnn
+    print(f"Rapporto resilienza (MLP/CNN): {rapporto_resilienza:.2f}x - CNN più robusta")
 else:
-    print("\nCNN mantiene superiorità in tutto il range testato")
-
-# Analisi tasso di degradazione
-def calcola_tasso_degradazione(noise_levels, accuracies):
-    """Calcola il tasso medio di degradazione per unità di rumore."""
-    degradazione_totale = accuracies[0] - accuracies[-1]
-    range_rumore = noise_levels[-1] - noise_levels[0]
-    return degradazione_totale / range_rumore
-
-tasso_degradazione_mlp = calcola_tasso_degradazione(noise_levels, accuracies_mlp)
-tasso_degradazione_cnn = calcola_tasso_degradazione(noise_levels, accuracies_cnn)
-
-print(f"\nTASSO DI DEGRADAZIONE (Acc/σ):")
-print(f"MLP: {tasso_degradazione_mlp:.4f} | CNN: {tasso_degradazione_cnn:.4f}")
-print(f"Rapporto resilienza (CNN/MLP): {tasso_degradazione_mlp/tasso_degradazione_cnn:.2f}x")
+    rapporto_resilienza = tasso_degradazione_cnn / tasso_degradazione_mlp  
+    print(f"Rapporto resilienza (CNN/MLP): {rapporto_resilienza:.2f}x - MLP più robusta")
 
 # %% [markdown]
 # ### Conclusioni del Punto C
 # 
 # **Prestazioni baseline identificate:**  
-# [risultati da implementare]
+# L'analisi si è basata su architetture ottimali che raggiungono prestazioni di riferimento elevate su dati puliti, fornendo un benchmark affidabile per la valutazione della robustezza.
 # 
 # **Pattern di degradazione sistematici:**  
-# [risultati da implementare]
+# [I risultati specifici determineranno i pattern osservati]
 # 
 # **Vulnerabilità classe-specifiche:**  
-# [risultati da implementare]
+# [Identificazione delle cifre più/meno robuste al rumore]
 # 
 # **Soglie critiche per deployment:**  
-# [risultati da implementare]
+# [Livelli di rumore critici per mantenere prestazioni accettabili]
 # 
 # **Raccomandazioni operative:**  
-# [risultati da implementare]
-
+# [Linee guida basate sui risultati sperimentali per applicazioni reali]
 # %% [markdown]
 # ## Punto D: Effetto della riduzione dei dati di training
 #
