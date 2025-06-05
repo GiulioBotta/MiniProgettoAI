@@ -1,26 +1,20 @@
 # %% [markdown]
-#  # Mini Progetto Intelligenza Artificiale - Riconoscimento cifre manoscritte
+#   # Mini Progetto Intelligenza Artificiale - Riconoscimento cifre manoscritte
 # 
+#   **Nome:** Giulio
 # 
+#   **Cognome:** Bottacin
 # 
-#  **Nome:** Giulio
+#   **Matricola:** 2042340
 # 
-#  **Cognome:** Bottacin
+#   **Data consegna:** 5/6/2025
 # 
-#  **Matricola:** 2042340
+#   ## Obiettivo
 # 
-#  **Data consegna:** 5/6/2025
-# 
-# 
-# 
-#  ## Obiettivo
-# 
-# 
-# 
-#  In questo progetto esploreremo il riconoscimento di cifre manoscritte utilizzando il dataset MNIST, implementando simulazioni per studiare come diversi fattori influenzano le prestazioni dei modelli di deep learning. Analizzeremo in particolare l'impatto degli iperparametri, la robustezza al rumore e l'effetto della quantità di dati di training.
+#   In questo progetto esploreremo il riconoscimento di cifre manoscritte utilizzando il dataset MNIST, implementando simulazioni per studiare come diversi fattori influenzano le prestazioni dei modelli di deep learning. Analizzeremo in particolare l'impatto degli iperparametri, la robustezza al rumore e l'effetto della quantità di dati di training.
 
 # %% [markdown]
-#  ## Importazione delle librerie necessarie
+#   ## Importazione delle librerie necessarie
 
 # %%
 import numpy as np
@@ -41,8 +35,9 @@ tf.random.set_seed(42)
 plt.rcParams['figure.figsize'] = (12, 6)
 
 
+
 # %% [markdown]
-#  ## Funzioni Helper Globali
+#   ## Funzioni Helper Globali
 
 # %%
 def stampa_header_esperimento(num_esp, totale, tipo_modello, config):
@@ -89,6 +84,10 @@ def crea_mlp_ottimale():
         random_state=42
     )
 
+def crea_cnn_ottimale():
+    """Crea CNN con configurazione ottimale identificata"""
+    return crea_modello_cnn('extended', 0.001)
+
 def add_gaussian_noise(images, noise_std):
     """Aggiunge rumore Gaussiano alle immagini"""
     np.random.seed(42)
@@ -100,9 +99,8 @@ def add_gaussian_noise(images, noise_std):
 BEST_MLP_CONFIG = None
 MLP_OPTIMAL = None
 
-
 # %% [markdown]
-#  ## Caricamento e preparazione del dataset MNIST
+#   ## Caricamento e preparazione del dataset MNIST
 
 # %%
 # Caricamento dataset MNIST
@@ -125,82 +123,95 @@ x_te_conv = x_te.reshape(-1, 28, 28, 1)
 print(f"Dataset caricato: {x_tr.shape[0]} esempi di training, {x_te.shape[0]} esempi di test")
 
 
-# %% [markdown]
-#  ## Punto A: Effetto degli iperparametri sulle prestazioni
-# 
-# 
-# 
-#  Analizziamo sistematicamente come variano le prestazioni dei modelli MLP e CNN al variare degli iperparametri chiave. Confronteremo 18 configurazioni MLP e 6 configurazioni CNN per un totale di 24 esperimenti mirati.
-# 
-#  Confronteremo 18 configurazioni MLP e 6 configurazioni CNN per un totale di 24 esperimenti mirati.
 
 # %% [markdown]
-#  ### Configurazione esperimenti sistematici
+#   ## Punto A: Effetto degli iperparametri sulle prestazioni
 # 
+#   Analizziamo sistematicamente come variano le prestazioni dei modelli MLP e CNN al variare degli iperparametri chiave. Confronteremo 18 configurazioni MLP e 6 configurazioni CNN per un totale di 24 esperimenti mirati.
 # 
-# 
-#  ***MLP (18 esperimenti):***
-# 
-#  - **Neuroni per strato**: *50, 100, 250* per testare la copertura da reti piccole a medio-grandi
-# 
-#  - **Numero layers**: *1 vs 2* strati nascosti per fare il confronto profondità vs larghezza
-# 
-#  - **Learning rate**: *0.001, 0.01, 0.1*
-# 
-# 
-# 
-#  ***CNN (6 esperimenti):***
-# 
-#  - **Filtri**: *32*, standard per MNIST, computazionalmente efficiente
-# 
-#  - **Architettura**: *baseline vs extended* per fare il confronto sulla complessità
-# 
-#  - **Learning rate**: *0.001, 0.01, 0.1*
-# 
-# 
-# 
-#  Per entrambi i modelli si è scelto di utilizzare il solver **Adam**, ormai standard e più performante di SDG.
-# 
-#  Si è volutamente scelto di eseguire meno esperimenti sulle CNN in quanto richiedono tempi molto più lunghi di training rispetto alle MLP.
-# 
-# 
-# 
-#  #### Scelta dei parametri di training
-# 
-# 
-# 
-#  ***MLP:***
-# 
-#  - *max_iter = 100* è sufficiente per convergenza su MNIST basato su cifre manoscritte.
-# 
-#  - *early_stopping = True*, previene l'overfitting essenziale quando sono presenti molti parametri.
-# 
-#  - *validation_fraction = 0.1*, split standard 90/10.
-# 
-#  - *tol = 0.001* è una precisione ragionevole per classificazione.
-# 
-#  - *n_iter_no_change = 10* è un livello di pazienza adeguata per permettere oscillazioni temporanee.
-# 
-# 
-# 
-#  ***CNN:***
-# 
-#  - *epochs = 20* valore di compromesso per bilanciare velocità e convergenza, il valore è più basso delle MLP perchè le CNN tipicamente convergono più velocemente.
-# 
-#  - *batch_size = 128*, trade-off memoria/velocità ottimale per dataset size.
-# 
-#  - *validation_split = 0.1*, coerente con le scelte di MLP.
-# 
-#  - *patience = 5*, le CNN sono meno soggette a oscillazioni quindi è stato scelto un livello di pazienza minore.
-# 
-#  - *min_delta = 0.001*, scelta la stessa precisione degli MLP per comparabilità diretta.
-# 
-# 
-# 
-#  Questa configurazione permette un confronto sistematico e bilanciato tra i due tipi di architetture.
+#   Confronteremo 18 configurazioni MLP e 6 configurazioni CNN per un totale di 24 esperimenti mirati.
 
 # %% [markdown]
-#  #### Funzioni helper per stampe risultati
+#   ### Configurazione esperimenti sistematici
+# 
+#   ***MLP (18 esperimenti):***
+# 
+#   - **Neuroni per strato**: *50, 100, 250* per testare la copertura da reti piccole a medio-grandi
+# 
+#   - **Numero layers**: *1 vs 2* strati nascosti per fare il confronto profondità vs larghezza
+# 
+#   - **Learning rate**: *0.001, 0.01, 0.1*
+# 
+#   ***CNN (6 esperimenti):***
+# 
+#   - **Filtri**: *32*, standard per MNIST, computazionalmente efficiente
+# 
+#   - **Architettura**: *baseline vs extended* per fare il confronto sulla complessità
+# 
+#   - **Learning rate**: *0.001, 0.01, 0.1*
+# 
+#   Per entrambi i modelli si è scelto di utilizzare il solver **Adam**, ormai standard e più performante di SDG.
+# 
+#   Si è volutamente scelto di eseguire meno esperimenti sulle CNN in quanto richiedono tempi molto più lunghi di training rispetto alle MLP.
+# 
+#   #### Scelta dei parametri di training
+# 
+#   ***MLP:***
+# 
+#   - *max_iter = 100* è sufficiente per convergenza su MNIST basato su cifre manoscritte.
+# 
+#   - *early_stopping = True*, previene l'overfitting essenziale quando sono presenti molti parametri.
+# 
+# 
+# 
+#   - *validation_fraction = 0.1*, split standard 90/10.
+# 
+# 
+# 
+#   - *tol = 0.001* è una precisione ragionevole per classificazione.
+# 
+# 
+# 
+#   - *n_iter_no_change = 10* è un livello di pazienza adeguata per permettere oscillazioni temporanee.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   ***CNN:***
+# 
+# 
+# 
+#   - *epochs = 20* valore di compromesso per bilanciare velocità e convergenza, il valore è più basso delle MLP perchè le CNN tipicamente convergono più velocemente.
+# 
+# 
+# 
+#   - *batch_size = 128*, trade-off memoria/velocità ottimale per dataset size.
+# 
+# 
+# 
+#   - *validation_split = 0.1*, coerente con le scelte di MLP.
+# 
+# 
+# 
+#   - *patience = 5*, le CNN sono meno soggette a oscillazioni quindi è stato scelto un livello di pazienza minore.
+# 
+# 
+# 
+#   - *min_delta = 0.001*, scelta la stessa precisione degli MLP per comparabilità diretta.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Questa configurazione permette un confronto sistematico e bilanciato tra i due tipi di architetture.
+
+# %% [markdown]
+#   #### Funzioni helper per stampe risultati
 
 # %%
 def stampa_header_esperimento(num_esp, totale, tipo_modello, config):
@@ -213,8 +224,9 @@ def stampa_risultati_esperimento(risultati):
     print(f"Overfitting: {risultati['overfitting']:+.4f}")
 
 
+
 # %% [markdown]
-#  ### Esperimenti sistematici MLP e CNN
+#   ### Esperimenti sistematici MLP e CNN
 
 # %%
 # Configurazione esperimenti
@@ -336,8 +348,9 @@ print(f"\nCONFIGURAZIONE MLP OTTIMALE IDENTIFICATA: {migliore_mlp['nome_config']
 print(f"Accuratezza: {migliore_mlp['test_accuracy']:.4f}")
 
 
+
 # %% [markdown]
-#  ### Grafico 1: Effetto del Learning Rate sulle prestazioni MLP
+#   ### Grafico 1: Effetto del Learning Rate sulle prestazioni MLP
 
 # %%
 # Analisi learning rate
@@ -387,8 +400,9 @@ plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Grafico 2: Confronto Completo delle Architetture
+#   ### Grafico 2: Confronto Completo delle Architetture
 
 # %%
 tutti_risultati = risultati_mlp + risultati_cnn
@@ -432,24 +446,13 @@ ax.grid(True, alpha=0.3)
 idx_migliore_mlp = tutti_risultati.index(migliore_mlp)
 idx_migliore_cnn = tutti_risultati.index(migliore_cnn)
 
-ax.annotate(f'Miglior MLP\n{migliore_mlp["test_accuracy"]:.4f}', 
-           xy=(idx_migliore_mlp + larghezza/2, migliore_mlp['test_accuracy']),
-           xytext=(10, 20), textcoords='offset points',
-           bbox=dict(boxstyle='round,pad=0.3', facecolor='lightblue', alpha=0.7),
-           arrowprops=dict(arrowstyle='->', color='blue'))
-
-ax.annotate(f'Miglior CNN\n{migliore_cnn["test_accuracy"]:.4f}', 
-           xy=(idx_migliore_cnn + larghezza/2, migliore_cnn['test_accuracy']),
-           xytext=(10, -30), textcoords='offset points',
-           bbox=dict(boxstyle='round,pad=0.3', facecolor='lightgreen', alpha=0.7),
-           arrowprops=dict(arrowstyle='->', color='green'))
-
 plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Grafico 3: Effetto Scaling MLP (1 vs 2 Strati Nascosti)
+#   ### Grafico 3: Effetto Scaling MLP (1 vs 2 Strati Nascosti)
 
 # %%
 # Analisi scaling MLP
@@ -501,8 +504,9 @@ plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Analisi quantitative aggiuntive e stampe risultati
+#   ### Analisi quantitative aggiuntive e stampe risultati
 
 # %%
 # Calcolo metriche di efficienza
@@ -547,71 +551,124 @@ print(f"Iterazioni medie CNN: {np.mean(iter_cnn):.1f}")
 print(f"Rapporto convergenza MLP/CNN: {np.mean(iter_mlp)/np.mean(iter_cnn):.1f}x")
 
 
-# %% [markdown]
-#  ### Discussione finale e conclusioni Punto A
-# 
-# 
-# 
-#  **Architetture ottimali identificate:**
-# 
-# 
-# 
-#  Gli esperimenti sistematici su 24 configurazioni hanno identificato due architetture leader:
-# 
-#  - **MLP** con 250 neuroni, 1 strato nascosto e learning rate 0.001 raggiunge **98.10%** di accuratezza
-# 
-#  - **CNN** extended con learning rate 0.001 ottiene **98.85%** stabilendo il benchmark prestazionale
-# 
-# 
-# 
-#  **Insights critici sul Learning Rate:**
-# 
-# 
-# 
-#  Il learning rate emerge come iperparametro decisivo: 0.001-0.01 costituisce il range ottimale con 0.001 che maximizza l'accuratezza (97.65% media) mentre 0.01 offre il miglior compromesso velocità-prestazioni (97.32%). Learning rate 0.1 causa collasso prestazionale drammatico (86.12% per MLP), evidenziando l'importanza critica della calibrazione.
-# 
-# 
-# 
-#  **Profondità vs Larghezza negli MLP:**
-# 
-# 
-# 
-#  Controintuitivamente, le architetture a 1 strato superano sistematicamente quelle a 2 strati con vantaggio medio di +2.2 punti percentuali, indicando che su MNIST la maggiore profondità introduce overfitting piuttosto che benefici. Questo suggerisce che la complessità intrinseca del task non giustifica architetture profonde.
-# 
-# 
-# 
-#  **Efficienza computazionale:**
-# 
-# 
-# 
-#  Gli MLP dominano l'efficienza (0.095 vs 0.018 acc/s) con rapporto 5.3x favorevole, principalmente per tempi di training drammaticamente inferiori che compensano il gap di accuratezza. Le configurazioni MLP piccole (50-100 neuroni, LR=0.01) emergono ideali per prototipazione rapida.
-# 
-# 
-# 
-#  **Robustezza all'overfitting:**
-# 
-# 
-# 
-#  Le CNN mostrano controllo superiore dell'overfitting (range 0.0012-0.0114) rispetto agli MLP (0.0004-0.0201) grazie ai meccanismi intrinseci di regolarizzazione. Sorprendentemente, la correlazione parametri-overfitting è debole (r=0.31), evidenziando che l'architettura conta più della complessità assoluta.
-# 
-# 
-# 
-#  **Raccomandazioni strategiche:**
-# 
-# 
-# 
-#  - Per **deployment critico**: MLP(250, lr=0.001) bilancia 98.1% accuratezza con efficienza 4x superiore alle CNN
-# 
-#  - Per **prototipazione veloce**: MLP(100, lr=0.01) offre 97.3% accuratezza in <10 secondi
-# 
-#  - Per **massimizzazione prestazioni**: CNN extended con lr=0.001 quando il costo computazionale è giustificabile
 
 # %% [markdown]
-#  ## Punto B: Analisi delle cifre più difficili da riconoscere
+#   ### Discussione finale e conclusioni Punto A
 # 
 # 
 # 
-#  Utilizziamo l'architettura MLP ottimale identificata nel Punto A per analizzare sistematicamente quali cifre sono più difficili da classificare attraverso la matrice di confusione e l'analisi degli errori.
+# 
+# 
+# 
+# 
+#   **Architetture ottimali identificate:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Gli esperimenti sistematici su 24 configurazioni hanno identificato **MLP(250n_1S_lr0.001)** con **98.10%** di accuratezza come architettura leader per il riconoscimento di cifre manoscritte su MNIST. La **CNN extended con lr=0.001** raggiunge **98.85%** stabilendo il benchmark prestazionale massimo ma con costi computazionali significativamente superiori.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Insights critici sul Learning Rate:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Il learning rate emerge come iperparametro decisivo con un range ottimale di **0.001-0.01**. Nello specifico, 0.001 maximizza l'accuratezza (**97.60%** media MLP) mentre 0.01 offre il miglior compromesso velocità-prestazioni (**97.40%** media). Learning rate 0.1 causa collasso prestazionale catastrofico (**86.10%** per MLP), evidenziando l'importanza critica della calibrazione fine.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Profondità vs Larghezza negli MLP:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Controintuitivamente, le architetture a **1 strato superano sistematicamente quelle a 2 strati** con vantaggio medio di +2.2 punti percentuali, indicando che su MNIST la maggiore profondità introduce overfitting piuttosto che benefici. Questo suggerisce che la complessità intrinseca del task di riconoscimento cifre non giustifica architetture profonde, confermando che semplicity pays off per problemi ben definiti.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Efficienza computazionale dominata dagli MLP:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Gli MLP dominano l'efficienza con **12.4x** rapporto favorevole rispetto alle CNN (0.110 vs 0.009 acc/s), principalmente per tempi di training drammaticamente inferiori che compensano il gap di accuratezza. Le configurazioni MLP piccole (50-100 neuroni, LR=0.01) emergono ideali per prototipazione rapida raggiungendo >97% accuratezza in <10 secondi.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Controllo dell'overfitting e correlazioni:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Le CNN mostrano controllo superiore dell'overfitting (overfitting medio 0.006) rispetto agli MLP (0.013) grazie ai meccanismi intrinseci di regolarizzazione. La correlazione parametri-overfitting è debolmente negativa (-0.37), evidenziando che l'architettura e la regolarizzazione contano più della complessità assoluta nel controllare la generalizzazione.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Raccomandazioni strategiche per deployment:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   - **Per deployment critico**: MLP(250, lr=0.001) bilancia 98.1% accuratezza con efficienza 12x superiore alle CNN
+# 
+# 
+# 
+#   - **Per prototipazione veloce**: MLP(100, lr=0.01) offre 97.3% accuratezza in <10 secondi con efficienza 0.22 acc/s
+# 
+# 
+# 
+#   - **Per massimizzazione prestazioni**: CNN extended con lr=0.001 solo quando il costo computazionale è giustificabile dal marginal gain di 0.75 punti percentuali
+
+# %% [markdown]
+#   ## Punto B: Analisi delle cifre più difficili da riconoscere
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Utilizziamo l'architettura MLP ottimale identificata nel Punto A per analizzare sistematicamente quali cifre sono più difficili da classificare attraverso la matrice di confusione e l'analisi degli errori.
 
 # %%
 # Training modello ottimale per analisi errori
@@ -640,8 +697,9 @@ total_errors = np.sum(y_pred != mnist_te_labels)
 print(f"Errori totali: {total_errors}")
 
 
+
 # %% [markdown]
-#  ### Grafico 1: Matrice di Confusione
+#   ### Grafico 1: Matrice di Confusione
 
 # %%
 cm = metrics.confusion_matrix(mnist_te_labels, y_pred)
@@ -683,8 +741,9 @@ plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Grafico 2: Difficoltà di Riconoscimento per Cifra
+#   ### Grafico 2: Difficoltà di Riconoscimento per Cifra
 
 # %%
 # Analisi errori per singola cifra
@@ -741,8 +800,9 @@ plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Analisi quantitative aggiuntive
+#   ### Analisi quantitative aggiuntive
 
 # %%
 # Analisi Top confusioni (precedente grafico rimosso)
@@ -794,55 +854,100 @@ correlazione_conf = np.corrcoef(confidenze_corrette, accuratezze)[0,1]
 print(f"\nCorrelazione confidenza-accuratezza: {correlazione_conf:.3f}")
 
 
-# %% [markdown]
-#  ### Discussione finale e conclusioni Punto B
-# 
-# 
-# 
-#  **Gerarchia di difficoltà identificata:**
-# 
-# 
-# 
-#  L'analisi quantitativa rivela una stratificazione clara delle cifre per difficoltà con la cifra **8** che emerge come più problematica (2.8% errori), seguita da **2** (2.5%) e **5** (2.4%), mentre **0** e **1** si confermano più robuste (<1% errori). Questa distribuzione riflette la complessità morfologica intrinseca: la cifra 8 presenta due loop chiusi che creano ambiguità con 3, 6 o 9.
-# 
-# 
-# 
-#  **Pattern di confusione sistematici:**
-# 
-# 
-# 
-#  Le Top 3 confusioni (4→9, 7→2, 8→3) rivelano errori morfologicamente giustificati dove la similitudine strutturale induce il modello in errore. L'analisi della simmetria mostra pattern direzionali significativi: 2↔3 presenta simmetria elevata (bidirezionale), mentre 8→3 mostra forte asimmetria indicando vulnerabilità specifica del modello nell'interpretare i loop della cifra 8.
-# 
-# 
-# 
-#  **Meccanismo di calibrazione della confidenza:**
-# 
-# 
-# 
-#  Il modello dimostra eccellente autoconsapevolezza con confidenze elevate per predizioni corrette (0.990-0.998) e significativamente ridotte per errori (0.722-0.845). La correlazione confidenza-accuratezza (r=0.78) fornisce un meccanismo naturale di early warning: soglie <0.80 potrebbero attivare controlli manuali, mentre >0.95 garantiscono affidabilità quasi assoluta.
-# 
-# 
-# 
-#  **Concentrazione e distribuzione degli errori:**
-# 
-# 
-# 
-#  Con solo 190 errori su 10.000 esempi (1.90% globale), il modello mostra robustezza generale. Le Top 3 confusioni rappresentano 22 errori (11.6% del totale), indicando vulnerabilità moderate senza pattern critici localizzati. Gli errori residui coinvolgono casi di genuina ambiguità morfologica dove anche osservatori umani potrebbero esitare.
-# 
-# 
-# 
-#  **Implicazioni per il miglioramento:**
-# 
-# 
-# 
-#  I risultati suggeriscono che ulteriori guadagni richiederanno interventi mirati: data augmentation per cifre problematiche (8, 2, 5), fine-tuning su confusioni specifiche, o architetture convoluzionali per catturare invarianze spaziali più sofisticate, dato che gli errori residui rappresentano il limite naturale per questo livello di complessità architettonica.
 
 # %% [markdown]
-#  ## Punto C: Curve psicometriche - Effetto del rumore
+#   ### Discussione finale e conclusioni Punto B
 # 
 # 
 # 
-#  Analizziamo sistematicamente come l'accuratezza di riconoscimento degrada all'aumentare del rumore Gaussiano aggiunto alle immagini di test, utilizzando l'architettura MLP ottimale per valutare la robustezza intrinseca del modello.
+# 
+# 
+# 
+# 
+#   **Gerarchia di difficoltà chiaramente stratificata:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   L'analisi quantitativa rivela una distribuzione netta delle cifre per difficoltà con la cifra **8** che emerge come più problematica (**2.8% errori**, 28/983 campioni), seguita da **2** (**2.5%**, 26/1032) e **5** (**2.4%**, 21/892), mentre **0** e **1** si confermano più robuste (**<1% errori** ciascuna). La cifra 8 presenta due loop chiusi che creano ambiguità strutturali con 3, 6 o 9, confermando che la complessità morfologica correla direttamente con la difficoltà di classificazione.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Pattern di confusione morfologicamente giustificati:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Le Top 3 confusioni (**4→9**: 9 errori, **7→2**: 8 errori, **8→3**: 7 errori) rivelano errori che seguono logiche di similitudine visiva genuine. L'analisi della simmetria mostra pattern direzionali significativi: la confusione 4↔9 presenta simmetria moderata (0.56), mentre 8→3 mostra forte asimmetria (0.29), indicando una vulnerabilità specifica del modello nell'interpretare i loop della cifra 8 quando degradati o ambigui.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Meccanismo di calibrazione della confidenza eccellente:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Il modello dimostra autoconsapevolezza superiore con confidenze elevate per predizioni corrette (**0.990-0.998**) e significativamente ridotte per errori (**0.722-0.845**). La correlazione confidenza-accuratezza (**r=0.774**) fornisce un meccanismo naturale di quality control: soglie **<0.80** potrebbero attivare controlli manuali, mentre **>0.95** garantiscono affidabilità del 99%+.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Distribuzione degli errori altamente concentrata:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Con solo **190 errori su 10.000 esempi** (1.90% globale), il modello mostra robustezza eccellente. Le Top 3 confusioni rappresentano appena **24 errori** (12.6% del totale), indicando che non esistono vulnerabilità localizzate critiche. La distribuzione uniforme degli errori residui suggerisce che si tratta di casi di genuina ambiguità morfologica dove anche osservatori umani esperti potrebbero esitare.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Limiti architettonali evidenziati:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   I risultati suggeriscono che ulteriori guadagni oltre il 98.1% richiederanno interventi sofisticati: data augmentation mirata per cifre problematiche (8, 2, 5), ensemble methods per confusioni specifiche, o architetture convoluzionali per catturare invarianze spaziali più robuste. Gli errori residui rappresentano probabilmente il limite naturale per MLP su questo livello di complessità, richiedendo approcci più sofisticati per miglioramenti marginali.
+
+# %% [markdown]
+#   ## Punto C: Curve psicometriche - Effetto del rumore
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Analizziamo sistematicamente come l'accuratezza di riconoscimento degrada all'aumentare del rumore Gaussiano aggiunto alle immagini di test, utilizzando l'architettura MLP ottimale per valutare la robustezza intrinseca del modello.
 
 # %%
 # Configurazione esperimento robustezza
@@ -882,8 +987,9 @@ for noise, acc in zip(noise_levels, accuracies_mlp):
     print(f"{noise:6.2f} |     {acc:.4f}")
 
 
+
 # %% [markdown]
-#  ### Grafico 1: Curve Psicometriche MLP
+#   ### Grafico 1: Curve Psicometriche MLP
 
 # %%
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
@@ -924,8 +1030,9 @@ plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Grafico 2: Robustezza per Singola Classe
+#   ### Grafico 2: Robustezza per Singola Classe
 
 # %%
 # Calcolo robustezza per classe
@@ -968,8 +1075,9 @@ plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Grafico 3: Esempio Visivo dell'Effetto del Rumore
+#   ### Grafico 3: Esempio Visivo dell'Effetto del Rumore
 
 # %%
 # Esempio visivo progressivo del rumore
@@ -998,8 +1106,9 @@ plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Analisi quantitative aggiuntive
+#   ### Analisi quantitative aggiuntive
 
 # %%
 # Analisi soglie critiche (precedenti grafici dettagliati rimossi)
@@ -1049,55 +1158,100 @@ print(f"\nCifra più robusta: {cifra_piu_robusta} (degradazione: {degradazioni_c
 print(f"Cifra meno robusta: {cifra_meno_robusta} (degradazione: {degradazioni_classe[cifra_meno_robusta]:+.3f})")
 
 
-# %% [markdown]
-#  ### Discussione finale e conclusioni Punto C
-# 
-# 
-# 
-#  **Pattern di degradazione sistematici:**
-# 
-# 
-# 
-#  Le curve psicometriche rivelano una degradazione progressiva ma controllata delle prestazioni con soglie critiche ben definite: il modello mantiene >90% accuratezza fino a σ=0.20, mentre il collasso significativo inizia oltre σ=0.35. Il tasso di degradazione globale (1.01 acc/σ) indica resilienza moderata del modello MLP alle perturbazioni gaussiane.
-# 
-# 
-# 
-#  **Vulnerabilità classe-specifiche:**
-# 
-# 
-# 
-#  L'analisi per singola classe rivela pattern distintivi di robustezza: la cifra **1** emerge come più robusta (degradazione +0.785) grazie alla sua semplicità strutturale, mentre la cifra **4** risulta più vulnerabile (degradazione +0.89) probabilmente per la complessità delle connessioni angolari che il rumore altera criticamente. Le cifre **0** e **8** mostrano robustezza intermedia nonostante forme chiuse potenzialmente sensibili.
-# 
-# 
-# 
-#  **Soglie critiche per deployment:**
-# 
-# 
-# 
-#  L'identificazione delle soglie operative fornisce riferimenti cruciali: σ≤0.15 per applicazioni critiche (>95% accuratezza), σ≤0.20 per uso generale (>90% accuratezza), σ≤0.35 per applicazioni tolleranti (>80% accuratezza). Oltre σ=0.40 il modello diventa inaffidabile (<60% accuratezza).
-# 
-# 
-# 
-#  **Allineamento con percezione umana:**
-# 
-# 
-# 
-#  L'esempio visivo conferma che il degradation del modello si allinea ragionevolmente con la percezione umana: le predizioni errate emergono quando le immagini diventano genuinamente ambigue anche per osservatori umani (σ≥0.3), validando la ragionevolezza del comportamento del modello.
-# 
-# 
-# 
-#  **Area Under Curve e resilienza globale:**
-# 
-# 
-# 
-#  L'AUC di robustezza (0.368) quantifica la resilienza globale del modello, fornendo una metrica comparativa per futuri miglioramenti. La degradazione graduale piuttosto che catastrofica suggerisce che il modello ha appreso features relativamente stabili, anche se ulteriori miglioramenti richiederebbero architetture più sofisticate o training con data augmentation specifica per la robustezza al rumore.
 
 # %% [markdown]
-#  ## Punto D: Effetto della riduzione dei dati di training
+#   ### Discussione finale e conclusioni Punto C
 # 
 # 
 # 
-#  Analizziamo come le prestazioni del modello MLP ottimale degradano quando riduciamo drasticamente la quantità di dati di training disponibili, mantenendo il bilanciamento tra le classi attraverso campionamento stratificato.
+# 
+# 
+# 
+# 
+#   **Pattern di degradazione controllata e progressiva:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Le curve psicometriche rivelano una degradazione sistematica ma controllata delle prestazioni con soglie critiche ben definite: il modello mantiene **>90% accuratezza fino a σ=0.20**, mentre il collasso significativo inizia oltre **σ=0.35**. Il tasso di degradazione globale (**1.03 acc/σ**) indica resilienza moderata del modello MLP alle perturbazioni gaussiane, con degradazione **non catastrofica** che preserva utilità pratica fino a livelli di rumore sostanziali.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Vulnerabilità classe-specifiche critiche:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   L'analisi per singola classe rivela pattern distintivi di robustezza: la cifra **5** emerge come più robusta (degradazione +0.160) grazie alla sua semplicità strutturale e forme distintive, mentre la cifra **1** risulta più vulnerabile (degradazione +0.970) probabilmente per la dipendenza critica da stroke sottili che il rumore compromette facilmente. Le cifre **0** e **8** mostrano robustezza intermedia nonostante forme chiuse potenzialmente sensibili.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Soglie operative per deployment critico:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   L'identificazione delle soglie operative fornisce riferimenti concreti per deployment: **σ≤0.15** per applicazioni critiche (**>95% accuratezza**), **σ≤0.20** per uso generale (**>90% accuratezza**), **σ≤0.35** per applicazioni tolleranti (**>80% accuratezza**). Oltre **σ=0.40** il modello diventa inaffidabile (**<60% accuratezza**), definendo limiti chiari per condizioni operative accettabili.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Allineamento con percezione umana:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   L'esempio visivo progressivo conferma che il degradation del modello si allinea ragionevolmente con la percezione umana: le predizioni errate emergono quando le immagini diventano genuinamente ambigue anche per osservatori umani (**σ≥0.3**), validando la ragionevolezza del comportamento del modello e suggerendo che i failure modes non sono patologici ma riflettono limitazioni genuine del signal-to-noise ratio.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Area Under Curve e resilienza globale:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   L'**AUC di robustezza (0.366)** quantifica la resilienza globale del modello, fornendo una metrica comparativa per futuri miglioramenti. La degradazione graduale piuttosto che catastrofica suggerisce che il modello ha appreso features relativamente stabili e generali, anche se ulteriori miglioramenti richiederebbero architetture più sofisticate o training con data augmentation specifica per la robustezza al rumore.
+
+# %% [markdown]
+#   ## Punto D: Effetto della riduzione dei dati di training
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Analizziamo come le prestazioni del modello MLP ottimale degradano quando riduciamo drasticamente la quantità di dati di training disponibili, mantenendo il bilanciamento tra le classi attraverso campionamento stratificato.
 
 # %%
 # Configurazione esperimento riduzione dati
@@ -1147,8 +1301,9 @@ for percentage in train_percentages:
     print(f"Samples: {len(indices):5d} | Train: {train_acc:.3f} | Test: {test_acc:.3f} | Time: {training_time:4.1f}s")
 
 
+
 # %% [markdown]
-#  ### Grafico 1: Accuratezza vs Percentuale Dati
+#   ### Grafico 1: Accuratezza vs Percentuale Dati
 
 # %%
 df_reduction = pd.DataFrame(results_data_reduction)
@@ -1190,8 +1345,9 @@ plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Grafico 2: Efficienza vs Dimensione Dataset
+#   ### Grafico 2: Efficienza vs Dimensione Dataset
 
 # %%
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
@@ -1216,8 +1372,9 @@ plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Analisi quantitative aggiuntive
+#   ### Analisi quantitative aggiuntive
 
 # %%
 # Stampe analisi dettagliate
@@ -1231,7 +1388,7 @@ for i, row in df_reduction.iterrows():
         scaling = 1.0
     else:
         scaling = row['training_time'] / df_reduction.iloc[0]['training_time']
-    print(f"{row['n_samples']:7d} | {row['training_time']:6.1f} | {scaling:6.1f}x")
+    print(f"{int(row['n_samples']):7d} | {row['training_time']:6.1f} | {scaling:6.1f}x")
 
 print(f"\nANALISI OVERFITTING vs DIMENSIONE:")
 print("-" * 35)
@@ -1253,61 +1410,106 @@ print("-" * 30)
 punto_10 = df_reduction[df_reduction['percentage'] == 10].iloc[0]
 punto_100 = df_reduction[df_reduction['percentage'] == 100].iloc[0]
 
-print(f"Con 10% dati: {punto_10['test_accuracy']:.3f} accuratezza ({punto_10['n_samples']} samples)")
-print(f"Con 100% dati: {punto_100['test_accuracy']:.3f} accuratezza ({punto_100['n_samples']} samples)")
+print(f"Con 10% dati: {punto_10['test_accuracy']:.3f} accuratezza ({int(punto_10['n_samples'])} samples)")
+print(f"Con 100% dati: {punto_100['test_accuracy']:.3f} accuratezza ({int(punto_100['n_samples'])} samples)")
 print(f"Loss prestazionale: {(punto_100['test_accuracy'] - punto_10['test_accuracy'])*100:.1f} punti percentuali")
 print(f"Speedup training: {punto_100['training_time']/punto_10['training_time']:.1f}x più veloce con 10%")
 
 
-# %% [markdown]
-#  ### Discussione finale e conclusioni Punto D
-# 
-# 
-# 
-#  **Degradazione prestazionale sistematica:**
-# 
-# 
-# 
-#  La riduzione dei dati mostra un impatto significativo ma graduale sulle prestazioni: con solo il 10% dei dati (5.996 campioni) il modello raggiunge comunque 94.45% di accuratezza, perdendo solo 3.4 punti percentuali rispetto alla configurazione completa (97.84%). Questo dimostra la robustezza intrinseca dell'architettura MLP ottimale anche in condizioni di scarsità dati.
-# 
-# 
-# 
-#  **Scaling temporale ed efficienza:**
-# 
-# 
-# 
-#  Il tempo di training scala quasi linearmente con la dimensione del dataset (da 3.5s con 1% a 28.1s con 100%), offrendo un trade-off attraente per applicazioni con vincoli temporali. L'efficienza (accuratezza/tempo) è massima con dataset ridotti, suggerendo che per prototipazione rapida o proof-of-concept, dataset del 10-25% possono essere ottimali.
-# 
-# 
-# 
-#  **Controllo dell'overfitting con dati limitati:**
-# 
-# 
-# 
-#  Controintuitivamente, dataset più piccoli mostrano overfitting ridotto (1% dati: +0.073, 100% dati: +0.017), indicando che la capacità del modello è ben calibrata rispetto alla complessità del task. Questo comportamento suggerisce che il modello non soffre di memorizzazione eccessiva anche con dati limitati.
-# 
-# 
-# 
-#  **Soglie operative per applicazioni reali:**
-# 
-# 
-# 
-#  I risultati identificano soglie pratiche: 25% dati (15K campioni) per >95% accuratezza in applicazioni critiche, 10% dati (6K campioni) per >94% accuratezza in scenari con vincoli di velocità, 5% dati (3K campioni) per >92% accuratezza in prototipazione rapida. Queste soglie forniscono linee guida concrete per bilanciare prestazioni e risorse computazionali.
-# 
-# 
-# 
-#  **Implicazioni per data collection e deployment:**
-# 
-# 
-# 
-#  La robustezza del modello con dati ridotti ha implicazioni significative per strategie di raccolta dati: investimenti massicci in dataset potrebbero fornire ritorni marginali decrescenti, mentre dataset moderati (10-25% della scala completa) potrebbero essere sufficienti per molte applicazioni pratiche, riducendo significativamente costi e tempi di sviluppo.
 
 # %% [markdown]
-#  ## Punto E: Training con rumore per migliorare la robustezza
+#   ### Discussione finale e conclusioni Punto D
 # 
 # 
 # 
-#  Verifichiamo se l'aggiunta di rumore Gaussiano durante il training può migliorare le prestazioni su dati di test rumorosi, utilizzando l'architettura MLP ottimale e un range esteso di livelli di rumore per data augmentation.
+# 
+# 
+# 
+# 
+#   **Degradazione prestazionale contenuta e sistematica:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   La riduzione dei dati mostra un impatto significativo ma graduabile sulle prestazioni: con solo il **10% dei dati** (5.996 campioni) il modello raggiunge comunque **94.3% di accuratezza**, perdendo solo **3.8 punti percentuali** rispetto alla configurazione completa (98.1%). Con **25% dei dati** (14.995 campioni) l'accuratezza sale a **96.5%**, perdendo solo 1.6 punti. Questo dimostra la robustezza intrinseca dell'architettura MLP ottimale anche in condizioni di significativa scarsità dati.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Scaling temporale quasi-lineare con benefici efficiency:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Il tempo di training scala in modo quasi-lineare con la dimensione del dataset (da **0.3s con 1%** a **31.2s con 100%**), offrendo un trade-off attraente per applicazioni con vincoli temporali. L'efficienza (accuratezza/tempo) è **massima con dataset ridotti** (2.83 acc/s con 1% vs 0.031 acc/s con 100%), suggerendo che per prototipazione rapida o proof-of-concept, dataset del **10-25%** possono essere ottimali con speedup di **9.7x** mantenendo >94% accuratezza.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Controllo dell'overfitting paradossalmente migliore con dati limitati:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Controintuitivamente, dataset più piccoli mostrano overfitting controllato (**1% dati**: +0.070, **100% dati**: +0.017), indicando che la capacità del modello è ben calibrata rispetto alla complessità del task. Questo comportamento suggerisce che il modello non soffre di memorizzazione eccessiva anche con dati limitati, grazie all'early stopping e alla regolarizzazione intrinseca dell'architettura.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Soglie operative per applicazioni reali definite:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   I risultati identificano soglie pratiche chiare: **25% dati** (15K campioni) per **>96% accuratezza** in applicazioni critiche, **10% dati** (6K campioni) per **>94% accuratezza** in scenari con vincoli di velocità, **5% dati** (3K campioni) per **>91% accuratezza** in prototipazione rapida. Queste soglie forniscono linee guida concrete per bilanciare prestazioni e risorse computazionali in deployment reali.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Implicazioni strategiche per data collection e deployment:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   La robustezza del modello con dati ridotti ha implicazioni significative per strategie di raccolta dati: investimenti massicci in dataset potrebbero fornire **ritorni marginali decrescenti** (da 25% a 100% dati: +1.6 punti per 4x dati), mentre dataset moderati (10-25% della scala completa) potrebbero essere sufficienti per molte applicazioni pratiche, riducendo significativamente **costi e tempi di sviluppo** senza compromettere l'efficacia operativa.
+
+# %% [markdown]
+#   ## Punto E: Training con rumore per migliorare la robustezza
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Verifichiamo se l'aggiunta di rumore Gaussiano durante il training può migliorare le prestazioni su dati di test rumorosi, utilizzando l'architettura MLP ottimale e un range esteso di livelli di rumore per data augmentation.
 
 # %%
 # Configurazione esperimento training con rumore
@@ -1358,8 +1560,9 @@ for train_noise, model in models_with_noise.items():
     print(f"Training noise σ={train_noise}: AUC = {auc:.3f}")
 
 
+
 # %% [markdown]
-#  ### Grafico 1: Curve Psicometriche per Diversi Training Noise
+#   ### Grafico 1: Curve Psicometriche per Diversi Training Noise
 
 # %%
 fig, ax = plt.subplots(figsize=(12, 8))
@@ -1382,8 +1585,9 @@ plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Grafico 2: AUC vs Training Noise Level
+#   ### Grafico 2: AUC vs Training Noise Level
 
 # %%
 # Calcolo AUC per ogni livello di training noise
@@ -1407,19 +1611,14 @@ ax.grid(True, alpha=0.3)
 best_noise = max(auc_scores, key=auc_scores.get)
 best_auc = auc_scores[best_noise]
 ax.scatter(best_noise, best_auc, s=200, color='gold', zorder=5)
-ax.annotate(f'Ottimo: σ={best_noise}\nAUC={best_auc:.3f}', 
-           xy=(best_noise, best_auc),
-           xytext=(best_noise + 0.05, best_auc + 0.01),
-           arrowprops=dict(arrowstyle='->', color='gold'),
-           fontsize=11, fontweight='bold',
-           bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
 
 plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Analisi quantitative aggiuntive
+#   ### Analisi quantitative aggiuntive
 
 # %%
 # Analisi miglioramento quantitativo
@@ -1467,55 +1666,100 @@ for test_noise in critical_test_noises:
         print(f"Test σ={test_noise}: {baseline_acc:.3f} → {best_acc:.3f} ({improvement:+.3f})")
 
 
-# %% [markdown]
-#  ### Discussione finale e conclusioni Punto E
-# 
-# 
-# 
-#  **Efficacia del training con rumore:**
-# 
-# 
-# 
-#  L'introduzione di rumore Gaussiano durante il training dimostra benefici significativi per la robustezza: la configurazione ottimale (σ=0.15) migliora l'AUC di robustezza del 8.7% rispetto al baseline senza rumore (da 0.331 a 0.360), confermando l'efficacia della data augmentation per la generalizzazione in condizioni avverse.
-# 
-# 
-# 
-#  **Range ottimale di training noise:**
-# 
-# 
-# 
-#  Emerge un range efficace σ=0.10-0.20 dove il rumore fornisce regolarizzazione benefica senza degradare eccessivamente le prestazioni su dati puliti. Oltre σ=0.25 i benefici si riducono e le prestazioni baseline iniziano a soffrire, indicando un trade-off ottimale ben definito.
-# 
-# 
-# 
-#  **Miglioramenti per livelli critici di test noise:**
-# 
-# 
-# 
-#  I benefici sono particolarmente evidenti su livelli moderati di rumore test: per σ_test=0.2 l'accuratezza migliora da 0.817 a 0.876 (+0.059), mentre per σ_test=0.3 da 0.739 a 0.821 (+0.082). Questo pattern indica che il training con rumore è più efficace nel range di applicazione pratica piuttosto che in condizioni estreme.
-# 
-# 
-# 
-#  **Meccanismo di regolarizzazione:**
-# 
-# 
-# 
-#  Il rumore nel training agisce come regolarizzatore implicito, forzando il modello a apprendere features più robuste e meno sensibili a perturbazioni locali. La curva AUC vs training noise mostra un optimum chiaro, suggerendo che esiste un livello ideale di "disturbo controllato" che massimizza la capacità di generalizzazione.
-# 
-# 
-# 
-#  **Implicazioni per deployment robusto:**
-# 
-# 
-# 
-#  I risultati forniscono una strategia concreta per deployment in ambienti rumorosi: utilizzare training con σ=0.15 può migliorare significativamente la robustezza con costo computazionale minimo. Questa tecnica è particolarmente preziosa per applicazioni dove la qualità dei dati in input può variare (digitalizzazione documenti, acquisizione mobile, trasmissione compressa), offrendo un miglioramento "gratuito" della robustezza senza modifiche architettoniche.
 
 # %% [markdown]
-#  ## Punto Bonus: Estensione con FashionMNIST
+#   ### Discussione finale e conclusioni Punto E
 # 
 # 
 # 
-#  Applichiamo l'architettura MLP ottimale al dataset FashionMNIST per valutare la generalizzazione su un task di classificazione più complesso e confrontare le prestazioni con MNIST per analizzare l'effetto della complessità del dataset.
+# 
+# 
+# 
+# 
+#   **Efficacia comprovata del training con rumore:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   L'introduzione di rumore Gaussiano durante il training dimostra benefici significativi per la robustezza: la configurazione ottimale (**σ=0.25**) migliora l'AUC di robustezza del **9.3%** rispetto al baseline senza rumore (da 0.308 a 0.337), confermando l'efficacia della data augmentation per la generalizzazione in condizioni avverse. Il peak improvement raggiunge **+0.289** in specifiche condizioni di test noise moderate.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Range ottimale di training noise ben definito:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Emerge un range efficace **σ=0.15-0.30** dove il rumore fornisce regolarizzazione benefica senza degradare eccessivamente le prestazioni su dati puliti (accuratezza baseline da 98.1% a 96.6% al massimo). Il plateau di prestazioni tra σ=0.20-0.30 indica un meccanismo robusto di regolarizzazione che non richiede fine-tuning estremo del parametro.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Miglioramenti concentrati su livelli critici di test noise:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   I benefici sono particolarmente evidenti su livelli moderati di rumore test: per **σ_test=0.2** l'accuratezza migliora da 0.898 a **0.968 (+0.070)**, mentre per **σ_test=0.3** da 0.812 a **0.962 (+0.149)**. Questo pattern indica che il training con rumore è più efficace nel range di applicazione pratica (**σ=0.1-0.3**) piuttosto che in condizioni estreme o pulite.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Meccanismo di regolarizzazione implicita:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Il rumore nel training agisce come regolarizzatore implicito, forzando il modello a apprendere **features più robuste** e meno sensibili a perturbazioni locali. La curva AUC vs training noise mostra un optimum chiaro a σ=0.25, suggerendo che esiste un livello ideale di "disturbo controllato" che massimizza la capacità di generalizzazione senza compromettere le prestazioni baseline.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Strategia deployment robusto senza modifiche architettoniche:**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   I risultati forniscono una strategia concreta per deployment in ambienti rumorosi: utilizzare training con **σ=0.25** può migliorare significativamente la robustezza con **costo computazionale nullo** (stesso training time). Questa tecnica è particolarmente preziosa per applicazioni dove la qualità dei dati in input può variare (digitalizzazione documenti, acquisizione mobile, trasmissione compressa), offrendo un miglioramento "gratuito" della robustezza senza modifiche architettoniche complesse.
+
+# %% [markdown]
+#   ## Punto Bonus: Estensione con FashionMNIST e confronto architetturale
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Applichiamo sia l'architettura MLP ottimale che la CNN ottimale al dataset FashionMNIST per valutare la generalizzazione su un task di classificazione più complesso. L'obiettivo è dimostrare che mentre per MNIST un MLP ben calibrato è sufficiente, per task di image recognition più complessi le CNN dovrebbero prevalere grazie ai loro strati convoluzionali.
 
 # %%
 # Caricamento e preprocessing FashionMNIST
@@ -1530,6 +1774,10 @@ fashion_te_data, fashion_te_labels = fashion_te.data.numpy(), fashion_te.targets
 x_fashion_tr = fashion_tr_data.reshape(60000, 28 * 28) / 255.0
 x_fashion_te = fashion_te_data.reshape(10000, 28 * 28) / 255.0
 
+# Preprocessing per CNN
+x_fashion_tr_conv = fashion_tr_data.reshape(-1, 28, 28, 1) / 255.0
+x_fashion_te_conv = fashion_te_data.reshape(-1, 28, 28, 1) / 255.0
+
 fashion_classes = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
                   'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
 
@@ -1541,383 +1789,660 @@ mlp_fashion = crea_mlp_ottimale()
 
 start_time = time.time()
 mlp_fashion.fit(x_fashion_tr, fashion_tr_labels)
-fashion_training_time = time.time() - start_time
+fashion_training_time_mlp = time.time() - start_time
 
-fashion_train_acc = mlp_fashion.score(x_fashion_tr, fashion_tr_labels)
-fashion_test_acc = mlp_fashion.score(x_fashion_te, fashion_te_labels)
+fashion_train_acc_mlp = mlp_fashion.score(x_fashion_tr, fashion_tr_labels)
+fashion_test_acc_mlp = mlp_fashion.score(x_fashion_te, fashion_te_labels)
 
-print(f"Training completato in {fashion_training_time:.1f}s")
-print(f"Train accuracy: {fashion_train_acc:.4f}")
-print(f"Test accuracy: {fashion_test_acc:.4f}")
-print(f"Overfitting: {fashion_train_acc - fashion_test_acc:+.4f}")
+print(f"Training MLP completato in {fashion_training_time_mlp:.1f}s")
+print(f"MLP Train accuracy: {fashion_train_acc_mlp:.4f}")
+print(f"MLP Test accuracy: {fashion_test_acc_mlp:.4f}")
 
-# Confronto diretto con MNIST
-mnist_test_acc = test_accuracy  # Dalla sezione punto B
-print(f"\nCONFRONTO PRESTAZIONI:")
-print(f"MNIST test accuracy: {mnist_test_acc:.4f}")
-print(f"FashionMNIST test accuracy: {fashion_test_acc:.4f}")
-print(f"Gap di complessità: {mnist_test_acc - fashion_test_acc:+.4f} ({((mnist_test_acc - fashion_test_acc)/fashion_test_acc)*100:+.1f}%)")
+# Training CNN ottimale su FashionMNIST
+print(f"\nTraining CNN ottimale su FashionMNIST...")
+cnn_fashion = crea_cnn_ottimale()
+early_stopping = keras.callbacks.EarlyStopping(
+    patience=5, min_delta=0.001, restore_best_weights=True, verbose=0
+)
+
+start_time = time.time()
+history_fashion = cnn_fashion.fit(x_fashion_tr_conv, fashion_tr_labels, 
+                                 validation_split=0.1, epochs=20, batch_size=128, 
+                                 callbacks=[early_stopping], verbose=0)
+fashion_training_time_cnn = time.time() - start_time
+
+fashion_train_loss_cnn, fashion_train_acc_cnn = cnn_fashion.evaluate(x_fashion_tr_conv, fashion_tr_labels, verbose=0)
+fashion_test_loss_cnn, fashion_test_acc_cnn = cnn_fashion.evaluate(x_fashion_te_conv, fashion_te_labels, verbose=0)
+
+print(f"Training CNN completato in {fashion_training_time_cnn:.1f}s")
+print(f"CNN Train accuracy: {fashion_train_acc_cnn:.4f}")
+print(f"CNN Test accuracy: {fashion_test_acc_cnn:.4f}")
+
+# Confronto con MNIST
+mnist_test_acc_mlp = test_accuracy  # Dalla sezione punto B
+mnist_test_acc_cnn = migliore_cnn['test_accuracy']  # Dal punto A
+
+print(f"\nCONFRONTO PRESTAZIONI CROSS-DATASET:")
+print("=" * 50)
+print(f"MNIST:")
+print(f"  MLP Ottimale: {mnist_test_acc_mlp:.4f}")
+print(f"  CNN Ottimale: {mnist_test_acc_cnn:.4f}")
+print(f"  Gap CNN-MLP: {mnist_test_acc_cnn - mnist_test_acc_mlp:+.4f}")
+
+print(f"\nFashionMNIST:")
+print(f"  MLP Ottimale: {fashion_test_acc_mlp:.4f}")
+print(f"  CNN Ottimale: {fashion_test_acc_cnn:.4f}")
+print(f"  Gap CNN-MLP: {fashion_test_acc_cnn - fashion_test_acc_mlp:+.4f}")
+
 
 
 # %% [markdown]
-#  ### Grafico 1: Confronto MNIST vs FashionMNIST
+#   ### Grafico 1: Confronto Architetturale Cross-Dataset
 
 # %%
-# Accuratezza per classe su entrambi i dataset
-mnist_class_accs = []
-fashion_class_accs = []
-
-# MNIST accuratezze per classe (riutilizzo da punto B)
-for digit in range(10):
-    mask_m = mnist_te_labels == digit
-    acc_m = np.sum((y_pred == mnist_te_labels) & mask_m) / np.sum(mask_m)
-    mnist_class_accs.append(acc_m)
-
-# FashionMNIST accuratezze per classe
-y_pred_fashion = mlp_fashion.predict(x_fashion_te)
-for digit in range(10):
-    mask_f = fashion_te_labels == digit
-    acc_f = np.sum((y_pred_fashion == fashion_te_labels) & mask_f) / np.sum(mask_f)
-    fashion_class_accs.append(acc_f)
+# Preparazione dati per il confronto
+datasets = ['MNIST', 'FashionMNIST']
+mlp_accuracies = [mnist_test_acc_mlp, fashion_test_acc_mlp]
+cnn_accuracies = [mnist_test_acc_cnn, fashion_test_acc_cnn]
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
-# Subplot 1: Confronto accuratezze per classe
-x_pos = np.arange(10)
+# Subplot 1: Confronto accuratezze assolute
+x_pos = np.arange(len(datasets))
 width = 0.35
 
-bars_mnist = ax1.bar(x_pos - width/2, mnist_class_accs, width, 
-                    label='MNIST', alpha=0.8, color='blue')
-bars_fashion = ax1.bar(x_pos + width/2, fashion_class_accs, width, 
-                      label='FashionMNIST', alpha=0.8, color='red')
+bars_mlp = ax1.bar(x_pos - width/2, mlp_accuracies, width, 
+                   label='MLP Ottimale', alpha=0.8, color='blue')
+bars_cnn = ax1.bar(x_pos + width/2, cnn_accuracies, width, 
+                   label='CNN Ottimale', alpha=0.8, color='red')
 
-ax1.set_xlabel('Classe', fontsize=12)
-ax1.set_ylabel('Accuratezza per classe', fontsize=12)
-ax1.set_title('Confronto Accuratezza per Classe:\nMNIST vs FashionMNIST', fontsize=14)
+ax1.set_xlabel('Dataset', fontsize=12)
+ax1.set_ylabel('Accuratezza Test', fontsize=12)
+ax1.set_title('Confronto Architetturale Cross-Dataset', fontsize=14)
 ax1.set_xticks(x_pos)
-ax1.set_xticklabels([f'{i}' for i in range(10)])
+ax1.set_xticklabels(datasets)
 ax1.legend()
 ax1.grid(True, alpha=0.3)
-
-# Annotazioni differenze significative
-for i, (mnist_acc, fashion_acc) in enumerate(zip(mnist_class_accs, fashion_class_accs)):
-    if abs(mnist_acc - fashion_acc) > 0.05:  # Differenza > 5%
-        ax1.annotate(f'{mnist_acc - fashion_acc:+.2f}', 
-                    xy=(i, max(mnist_acc, fashion_acc) + 0.02),
-                    ha='center', fontsize=9, color='darkred', fontweight='bold')
-
-# Subplot 2: Accuratezza globale confronto
-datasets = ['MNIST', 'FashionMNIST']
-accuracies = [mnist_test_acc, fashion_test_acc]
-colors = ['blue', 'red']
-
-bars = ax2.bar(datasets, accuracies, color=colors, alpha=0.7, width=0.6)
-ax2.set_ylabel('Accuratezza Test Globale', fontsize=12)
-ax2.set_title('Confronto Prestazioni Globali', fontsize=14)
-ax2.grid(True, alpha=0.3)
-ax2.set_ylim(0.8, 1.0)
+ax1.set_ylim(0.85, 1.0)
 
 # Annotazioni valori
-for bar, acc in zip(bars, accuracies):
-    height = bar.get_height()
-    ax2.annotate(f'{acc:.4f}', xy=(bar.get_x() + bar.get_width()/2, height),
-                xytext=(0, 3), textcoords="offset points", ha='center', va='bottom',
-                fontsize=12, fontweight='bold')
+for i, (mlp_acc, cnn_acc) in enumerate(zip(mlp_accuracies, cnn_accuracies)):
+    ax1.annotate(f'{mlp_acc:.3f}', xy=(i - width/2, mlp_acc), 
+                xytext=(0, 3), textcoords="offset points", ha='center', va='bottom')
+    ax1.annotate(f'{cnn_acc:.3f}', xy=(i + width/2, cnn_acc), 
+                xytext=(0, 3), textcoords="offset points", ha='center', va='bottom')
 
-# Annotazione gap
-gap = accuracies[0] - accuracies[1]
-ax2.annotate(f'Gap: {gap:.3f}\n({gap/accuracies[1]*100:+.1f}%)', 
-            xy=(0.5, (accuracies[0] + accuracies[1])/2),
-            ha='center', fontsize=11, color='darkgreen', fontweight='bold',
-            bbox=dict(boxstyle="round,pad=0.3", facecolor="lightyellow", alpha=0.8))
+# Subplot 2: Gap CNN-MLP
+gaps = [cnn_acc - mlp_acc for mlp_acc, cnn_acc in zip(mlp_accuracies, cnn_accuracies)]
+colors = ['lightblue' if gap > 0 else 'lightcoral' for gap in gaps]
+
+bars_gap = ax2.bar(datasets, gaps, color=colors, alpha=0.7, width=0.6)
+ax2.set_ylabel('Gap CNN - MLP', fontsize=12)
+ax2.set_title('Vantaggio CNN vs MLP per Dataset', fontsize=14)
+ax2.grid(True, alpha=0.3)
+ax2.axhline(y=0, color='black', linestyle='-', alpha=0.5)
+
+# Annotazioni gap
+for i, (dataset, gap) in enumerate(zip(datasets, gaps)):
+    ax2.annotate(f'{gap:+.3f}', xy=(i, gap), 
+                xytext=(0, 5 if gap > 0 else -15), textcoords="offset points", 
+                ha='center', va='bottom' if gap > 0 else 'top', fontweight='bold')
 
 plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Grafico 2: Matrice di Confusione FashionMNIST
+#   ### Grafico 2: Matrice di Confusione FashionMNIST
 
 # %%
-cm_fashion = metrics.confusion_matrix(fashion_te_labels, y_pred_fashion)
+# Calcolo predizioni per FashionMNIST con entrambi i modelli
+y_pred_fashion_mlp = mlp_fashion.predict(x_fashion_te)
+y_pred_fashion_cnn = cnn_fashion.predict(x_fashion_te_conv)
+y_pred_fashion_cnn_classes = np.argmax(y_pred_fashion_cnn, axis=1)
 
-fig, ax = plt.subplots(figsize=(10, 8))
+cm_fashion_mlp = metrics.confusion_matrix(fashion_te_labels, y_pred_fashion_mlp)
+cm_fashion_cnn = metrics.confusion_matrix(fashion_te_labels, y_pred_fashion_cnn_classes)
 
-im = ax.imshow(cm_fashion, cmap='Blues')
-ax.set_xticks(range(10))
-ax.set_yticks(range(10))
-ax.set_xticklabels([f'{i}' for i in range(10)])
-ax.set_yticklabels([f'{i}: {fashion_classes[i][:8]}' for i in range(10)], fontsize=10)
-ax.set_xlabel('Predetto', fontsize=12)
-ax.set_ylabel('Vero', fontsize=12)
-ax.set_title('Matrice di Confusione - FashionMNIST', fontsize=14)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8))
 
-# Annotazioni con valori
+# Matrice confusione MLP
+im1 = ax1.imshow(cm_fashion_mlp, cmap='Blues')
+ax1.set_xticks(range(10))
+ax1.set_yticks(range(10))
+ax1.set_xticklabels([f'{i}' for i in range(10)])
+ax1.set_yticklabels([f'{i}: {fashion_classes[i][:8]}' for i in range(10)], fontsize=9)
+ax1.set_xlabel('Predetto', fontsize=12)
+ax1.set_ylabel('Vero', fontsize=12)
+ax1.set_title(f'Matrice Confusione FashionMNIST - MLP\n(Acc: {fashion_test_acc_mlp:.3f})', fontsize=14)
+
 for i in range(10):
     for j in range(10):
-        color = 'white' if cm_fashion[i, j] > cm_fashion.max() / 2 else 'black'
-        ax.text(j, i, f'{cm_fashion[i, j]}', ha='center', va='center', 
-                color=color, fontweight='bold')
+        color = 'white' if cm_fashion_mlp[i, j] > cm_fashion_mlp.max() / 2 else 'black'
+        ax1.text(j, i, f'{cm_fashion_mlp[i, j]}', ha='center', va='center', 
+                color=color, fontweight='bold', fontsize=8)
 
-fig.colorbar(im, ax=ax, shrink=0.8)
+# Matrice confusione CNN
+im2 = ax2.imshow(cm_fashion_cnn, cmap='Reds')
+ax2.set_xticks(range(10))
+ax2.set_yticks(range(10))
+ax2.set_xticklabels([f'{i}' for i in range(10)])
+ax2.set_yticklabels([f'{i}: {fashion_classes[i][:8]}' for i in range(10)], fontsize=9)
+ax2.set_xlabel('Predetto', fontsize=12)
+ax2.set_ylabel('Vero', fontsize=12)
+ax2.set_title(f'Matrice Confusione FashionMNIST - CNN\n(Acc: {fashion_test_acc_cnn:.3f})', fontsize=14)
+
+for i in range(10):
+    for j in range(10):
+        color = 'white' if cm_fashion_cnn[i, j] > cm_fashion_cnn.max() / 2 else 'black'
+        ax2.text(j, i, f'{cm_fashion_cnn[i, j]}', ha='center', va='center', 
+                color=color, fontweight='bold', fontsize=8)
+
+fig.colorbar(im1, ax=ax1, shrink=0.6)
+fig.colorbar(im2, ax=ax2, shrink=0.6)
 plt.tight_layout()
 plt.show()
 
 
+
 # %% [markdown]
-#  ### Analisi quantitative aggiuntive
+#   ### Analisi quantitative aggiuntive
 
 # %%
-# Analisi robustezza comparativa (precedenti curve psicometriche rimosse)
-print("ANALISI ROBUSTEZZA COMPARATIVA:")
+# Analisi comparative dettagliate
+print("ANALISI COMPARATIVE CROSS-DATASET:")
+print("=" * 40)
+
+# Calcolo gap di complessità
+mnist_complexity_gap = mnist_test_acc_mlp - fashion_test_acc_mlp
+fashion_complexity_gap_cnn = mnist_test_acc_cnn - fashion_test_acc_cnn
+
+print("Gap di complessità (MNIST vs FashionMNIST):")
+print(f"MLP: {mnist_complexity_gap:+.4f} ({mnist_complexity_gap/fashion_test_acc_mlp*100:+.1f}%)")
+print(f"CNN: {fashion_complexity_gap_cnn:+.4f} ({fashion_complexity_gap_cnn/fashion_test_acc_cnn*100:+.1f}%)")
+
+# Analisi vantaggio architetturale
+mnist_arch_gap = mnist_test_acc_cnn - mnist_test_acc_mlp
+fashion_arch_gap = fashion_test_acc_cnn - fashion_test_acc_mlp
+
+print(f"\nVantaggio CNN vs MLP:")
+print(f"MNIST: {mnist_arch_gap:+.4f} ({mnist_arch_gap/mnist_test_acc_mlp*100:+.1f}%)")
+print(f"FashionMNIST: {fashion_arch_gap:+.4f} ({fashion_arch_gap/fashion_test_acc_mlp*100:+.1f}%)")
+print(f"Amplificazione vantaggio CNN: {fashion_arch_gap/mnist_arch_gap:.1f}x")
+
+# Analisi errori per architettura
+mnist_errors_mlp = 10000 - int(mnist_test_acc_mlp * 10000)
+fashion_errors_mlp = np.sum(y_pred_fashion_mlp != fashion_te_labels)
+fashion_errors_cnn = np.sum(y_pred_fashion_cnn_classes != fashion_te_labels)
+
+print(f"\nANALISI ERRORI ASSOLUTI:")
+print("-" * 25)
+print(f"MNIST MLP: {mnist_errors_mlp} errori ({(mnist_errors_mlp/10000)*100:.1f}%)")
+print(f"FashionMNIST MLP: {fashion_errors_mlp} errori ({(fashion_errors_mlp/10000)*100:.1f}%)")
+print(f"FashionMNIST CNN: {fashion_errors_cnn} errori ({(fashion_errors_cnn/10000)*100:.1f}%)")
+print(f"Riduzione errori CNN vs MLP su FashionMNIST: {fashion_errors_mlp - fashion_errors_cnn} errori")
+
+# Analisi top confusioni comparative
+print(f"\nTOP CONFUSIONI FASHIONMNIST:")
 print("-" * 35)
 
-# Test robustezza su subset FashionMNIST
-x_fashion_te_subset = x_fashion_te[:2000]
-y_fashion_te_subset = fashion_te_labels[:2000]
-
-noise_levels_comp = np.arange(0, 0.3, 0.05)
-acc_mnist_comp = []
-acc_fashion_comp = []
-
-for noise_std in noise_levels_comp:
-    # MNIST
-    x_noisy_mnist = add_gaussian_noise(x_te_subset, noise_std)
-    acc_mnist_comp.append(MLP_OPTIMAL.score(x_noisy_mnist, y_te_subset))
-    
-    # FashionMNIST  
-    x_noisy_fashion = add_gaussian_noise(x_fashion_te_subset, noise_std)
-    acc_fashion_comp.append(mlp_fashion.score(x_noisy_fashion, y_fashion_te_subset))
-
-print("Noise σ | MNIST | Fashion | Diff")
-print("-" * 32)
-for noise, acc_m, acc_f in zip(noise_levels_comp, acc_mnist_comp, acc_fashion_comp):
-    diff = acc_m - acc_f
-    print(f"{noise:6.2f} | {acc_m:.3f} | {acc_f:.3f}  | {diff:+.3f}")
-
-# AUC comparative
-auc_mnist_comp = np.trapz(acc_mnist_comp, noise_levels_comp)
-auc_fashion_comp = np.trapz(acc_fashion_comp, noise_levels_comp)
-print(f"\nAUC MNIST: {auc_mnist_comp:.3f}")
-print(f"AUC FashionMNIST: {auc_fashion_comp:.3f}")
-print(f"Rapporto robustezza: {auc_mnist_comp/auc_fashion_comp:.2f}x MNIST più robusto")
-
-# Analisi top errori FashionMNIST (precedente grafico rimosso)
-print(f"\nTOP CONFUSIONI FASHIONMNIST:")
-print("-" * 30)
-
-fashion_confusion_pairs = []
+# Top confusioni MLP
+fashion_confusion_pairs_mlp = []
 for i in range(10):
     for j in range(10):
-        if i != j and cm_fashion[i, j] > 0:
-            fashion_confusion_pairs.append({
+        if i != j and cm_fashion_mlp[i, j] > 0:
+            fashion_confusion_pairs_mlp.append({
                 'true_class': fashion_classes[i],
                 'pred_class': fashion_classes[j],
-                'true_idx': i,
-                'pred_idx': j,
-                'count': cm_fashion[i, j]
+                'count': cm_fashion_mlp[i, j],
+                'model': 'MLP'
             })
 
-df_fashion_confusion = pd.DataFrame(fashion_confusion_pairs)
-top_5_fashion = df_fashion_confusion.nlargest(5, 'count')
+df_fashion_confusion_mlp = pd.DataFrame(fashion_confusion_pairs_mlp)
+top_3_fashion_mlp = df_fashion_confusion_mlp.nlargest(3, 'count')
 
-print("Top 5 confusioni più frequenti:")
-for _, row in top_5_fashion.iterrows():
-    print(f"{row['true_class'][:8]} → {row['pred_class'][:8]}: {row['count']} errori")
+print("Top 3 confusioni MLP:")
+for _, row in top_3_fashion_mlp.iterrows():
+    print(f"  {row['true_class'][:8]} → {row['pred_class'][:8]}: {row['count']} errori")
 
-# Statistiche comparative dataset
-print(f"\nSTATISTICHE COMPARATIVE DATASET:")
+# Top confusioni CNN
+fashion_confusion_pairs_cnn = []
+for i in range(10):
+    for j in range(10):
+        if i != j and cm_fashion_cnn[i, j] > 0:
+            fashion_confusion_pairs_cnn.append({
+                'true_class': fashion_classes[i],
+                'pred_class': fashion_classes[j],
+                'count': cm_fashion_cnn[i, j],
+                'model': 'CNN'
+            })
+
+df_fashion_confusion_cnn = pd.DataFrame(fashion_confusion_pairs_cnn)
+top_3_fashion_cnn = df_fashion_confusion_cnn.nlargest(3, 'count')
+
+print("\nTop 3 confusioni CNN:")
+for _, row in top_3_fashion_cnn.iterrows():
+    print(f"  {row['true_class'][:8]} → {row['pred_class'][:8]}: {row['count']} errori")
+
+# Analisi efficienza computazionale
+print(f"\nANALISI EFFICIENZA COMPUTAZIONALE:")
 print("-" * 35)
-print(f"Errori totali MNIST: {total_errors} ({(total_errors/10000)*100:.1f}%)")
+print(f"Tempo training FashionMNIST:")
+print(f"  MLP: {fashion_training_time_mlp:.1f}s")
+print(f"  CNN: {fashion_training_time_cnn:.1f}s")
+print(f"  Speedup MLP: {fashion_training_time_cnn/fashion_training_time_mlp:.1f}x")
 
-fashion_errors = np.sum(y_pred_fashion != fashion_te_labels)
-print(f"Errori totali FashionMNIST: {fashion_errors} ({(fashion_errors/10000)*100:.1f}%)")
-print(f"Rapporto complessità: {fashion_errors/total_errors:.1f}x più errori su FashionMNIST")
+mlp_efficiency_fashion = fashion_test_acc_mlp / fashion_training_time_mlp
+cnn_efficiency_fashion = fashion_test_acc_cnn / fashion_training_time_cnn
+
+print(f"\nEfficienza (acc/tempo) FashionMNIST:")
+print(f"  MLP: {mlp_efficiency_fashion:.4f} acc/s")
+print(f"  CNN: {cnn_efficiency_fashion:.4f} acc/s")
+print(f"  Rapporto MLP/CNN: {mlp_efficiency_fashion/cnn_efficiency_fashion:.1f}x")
 
 
-# %% [markdown]
-#  ### Discussione finale e conclusioni Punto Bonus
-# 
-# 
-# 
-#  **Gap di complessità quantificato:**
-# 
-# 
-# 
-#  FashionMNIST dimostra essere significativamente più challenging di MNIST con una perdita di 1.35 punti percentuali (87.63% vs 98.10%), rappresentando un aumento del 54% nel tasso di errore relativo. Questo gap riflette la maggiore complessità intrinseca degli indumenti rispetto alle cifre: forme più variabili, texture, prospettive multiple e sovrapposizioni strutturali.
-# 
-# 
-# 
-#  **Pattern di vulnerabilità classe-specifici:**
-# 
-# 
-# 
-#  L'analisi per classe rivela vulnerabilità distinctive: 'Shirt' (classe 6) e 'Pullover' (classe 2) mostrano le accuratezze più basse a causa della similitudine morfologica, mentre 'Trouser' (classe 1) e 'Bag' (classe 8) mantengono prestazioni robuste grazie a forme distintive. Le confusioni dominanti (Shirt→T-shirt, Pullover→Coat) riflettono ambiguità semantiche genuine anche per osservatori umani.
-# 
-# 
-# 
-#  **Robustezza al rumore comparativa:**
-# 
-# 
-# 
-#  FashionMNIST mostra degradazione più rapida al rumore (AUC 1.42) rispetto a MNIST (AUC 1.89), con rapporto di robustezza 1.33x favorevole a MNIST. Questo pattern indica che le features dei capi di abbigliamento sono intrinsecamente più sensibili alle perturbazioni, probabilmente per la maggiore dipendenza da dettagli testurali e geometrici sottili.
-# 
-# 
-# 
-#  **Efficacia dell'architettura ottimale:**
-# 
-# 
-# 
-#  L'architettura MLP ottimale, progettata su MNIST, mantiene performance competitive su FashionMNIST (87.63%), dimostrando buona generalizzazione cross-domain. Tuttavia, il gap prestazionale suggerisce che architetture più sofisticate (CNN, attention mechanisms) potrebbero fornire benefici maggiori su task visivi complessi rispetto a dataset semplificati come MNIST.
-# 
-# 
-# 
-#  **Implicazioni per model selection e deployment:**
-# 
-# 
-# 
-#  I risultati evidenziano l'importanza della validazione cross-domain: modelli che eccellono su benchmark semplici (MNIST) possono mostrare limitazioni su applicazioni reali più complesse. Per deployment in domini visuali complessi, si raccomanda validazione su dataset eterogenei e considerazione di architetture specificamente progettate per robustezza alle variazioni intra-classe e complessità morfologica elevata.
 
 # %% [markdown]
-#  ## Conclusioni Generali del Progetto
+#   ### Discussione finale e conclusioni Punto Bonus
 # 
 # 
 # 
-#  ### Riepilogo dei risultati principali
 # 
 # 
 # 
-#  **Punto A - Analisi Iperparametri:**
 # 
-#  - Identificate architetture ottimali: MLP(250n_1S_lr0.001) con 98.10% e CNN(extended_lr0.001) con 98.85%
+#   **Dimostrazione del vantaggio architetturale CNN per complessità elevata:**
 # 
-#  - Learning rate critico: range ottimale 0.001-0.01, collasso catastrofico a 0.1
 # 
-#  - Profondità controproducente: 1 strato supera 2 strati di +2.2 punti su MNIST
 # 
-#  - Efficienza dominata da MLP: rapporto 5.3x favorevole per accuratezza/tempo
 # 
 # 
 # 
-#  **Punto B - Cifre difficili:**
 # 
-#  - Gerarchia difficoltà: 8(2.8%), 2(2.5%), 5(2.4%) vs 0(<1%), 1(<1%)
+#   Il confronto cross-dataset conferma l'ipotesi iniziale: mentre su MNIST il vantaggio CNN è marginale (**+0.007** punti, +0.7%), su FashionMNIST la CNN ottimale supera significativamente l'MLP ottimale con **+0.042** punti (+4.7%). Questa **amplificazione 6x del vantaggio CNN** dimostra che le architetture convoluzionali diventano cruciali quando la complessità visiva aumenta, sfruttando translation invariance e feature hierarchies per pattern più sofisticati.
 # 
-#  - Pattern confusione morfologicamente giustificati: 4→9, 7→2, 8→3
 # 
-#  - Calibrazione confidenza eccellente: correlazione r=0.78 per early warning
 # 
-#  - 190 errori totali su 10K (1.90% tasso globale) con distribuzione controllata
 # 
 # 
 # 
-#  **Punto C - Robustezza al rumore:**
 # 
-#  - Soglie operative definite: σ≤0.15(>95%), σ≤0.20(>90%), σ≤0.35(>80%)
+#   **Gap di complessità dataset differenziale per architettura:**
 # 
-#  - Degradazione graduale, non catastrofica: tasso 1.01 acc/σ
 # 
-#  - Vulnerabilità classe-specifiche: cifra 4 più vulnerabile, cifra 1 più robusta
 # 
-#  - Allineamento con percezione umana per σ≥0.3
 # 
 # 
 # 
-#  **Punto D - Riduzione dati:**
 # 
-#  - Robustezza a scarsità dati: 10% dati → 94.45% accuratezza (-3.4 punti)
+#   FashionMNIST risulta sistematicamente più challenging di MNIST, ma l'impatto varia per architettura: l'MLP perde **10.0 punti percentuali** (98.1% → 89.2%), mentre la CNN perde solo **8.4 punti** (98.8% → 93.4%). Questo pattern indica che le CNN sono intrinsecamente più robuste alla complessità visiva incrementale, confermando la loro superiorità per image recognition tasks realistici.
 # 
-#  - Scaling temporale quasi lineare con benefici efficiency per dataset ridotti
 # 
-#  - Overfitting controllato anche con dati limitati
 # 
-#  - Soglie pratiche: 25%(>95%), 10%(>94%), 5%(>92%)
 # 
 # 
 # 
-#  **Punto E - Training con rumore:**
 # 
-#  - Data augmentation efficace: σ=0.15 ottimale con +8.7% AUC miglioramento
+#   **Riduzione errori significativa con CNN:**
 # 
-#  - Range efficace σ=0.10-0.20 per regolarizzazione benefica
 # 
-#  - Benefici concentrati su rumore test moderato (σ=0.2-0.3)
 # 
-#  - Strategia deployment robusto senza modifiche architettoniche
 # 
 # 
 # 
-#  **Punto Bonus - FashionMNIST:**
 # 
-#  - Gap complessità quantificato: -1.35 punti (54% aumento tasso errore)
+#   Su FashionMNIST, la CNN riduce gli errori da **1079 (MLP) a 658 (CNN)**, una diminuzione di **421 errori (-39%)**. Questo miglioramento sostanziale non è solo statistico ma operativamente rilevante, trasformando un sistema con ~11% error rate in uno con ~7% error rate, un salto qualitativo significativo per deployment reali.
 # 
-#  - Robustezza ridotta: rapporto 1.33x MNIST più robusto al rumore
 # 
-#  - Confusioni semanticamente giustificate tra indumenti simili
 # 
-#  - Validazione importanza testing cross-domain
 # 
 # 
 # 
-#  ### Insights metodologici trasversali
 # 
+#   **Pattern di confusione architettura-specifici:**
 # 
 # 
-#  **Architettura e iperparametri:**
 # 
-#  La ricerca sistematica conferma che per task visivi semplici come MNIST, architetture snelle ben calibrate superano configurazioni complesse. Il learning rate emerge come iperparametro più critico, mentre la profondità aggiuntiva introduce overfitting senza benefici su dataset a complessità limitata.
 # 
 # 
 # 
-#  **Robustezza e generalizzazione:**
 # 
-#  I modelli dimostrano resilienza intrinseca a condizioni avverse (rumore, dati limitati) quando l'architettura è appropriata al task. La data augmentation con rumore controllato fornisce miglioramenti significativi "gratuiti" senza costi architettonali.
+#   L'analisi delle confusioni rivela che la CNN mitiga sistematicamente gli errori più problematici dell'MLP. Le top confusioni della CNN sono generalmente meno severe numericamente, suggerendo che i meccanismi di pooling e feature extraction gerarchica catturano invarianze che l'MLP non riesce a apprendere efficacemente su pattern visivi complessi come tessuti e forme di abbigliamento.
 # 
 # 
 # 
-#  **Efficienza computazionale:**
 # 
-#  Il trade-off accuratezza-tempo rivela che per molte applicazioni pratiche, configurazioni moderate offrono il miglior valore: MLP(100, lr=0.01) raggiunge 97.3% in <10 secondi, ideale per prototipazione e deployment con vincoli temporali.
 # 
 # 
 # 
-#  **Calibrazione e affidabilità:**
+#   **Trade-off efficienza vs prestazioni confermato:**
 # 
-#  I modelli mostrano eccellente autoconsapevolezza attraverso calibrazione delle confidenze, fornendo meccanismi naturali di quality control per deployment critico senza modifiche architettoniche aggiuntive.
 # 
 # 
 # 
-#  ### Raccomandazioni strategiche per applicazioni reali
 # 
 # 
 # 
-#  **Per sviluppo rapido e prototipazione:**
+#   L'MLP mantiene supremazia nell'efficienza computazionale con speedup **4.8x** nel training time (34.3s vs 164.5s CNN), ottenendo comunque prestazioni rispettabili (89.2%). Questo trade-off rimane valido anche su task complessi, rendendo gli MLP ottimali per scenari con vincoli computazionali severi o when good enough accuracy suffices.
 # 
-#  - MLP(100, lr=0.01) per iterazione veloce e proof-of-concept
 # 
-#  - Dataset 10-25% per validazione iniziale con mantenimento >94% prestazioni
 # 
-#  - Training con rumore σ=0.15 per robustezza immediata
 # 
 # 
 # 
-#  **Per deployment critico:**
 # 
-#  - MLP(250, lr=0.001) per massimo bilanciamento prestazioni-efficienza
+#   **Validazione strategia model selection:**
 # 
-#  - Soglie confidenza <0.80 per escalation manuale
 # 
-#  - Validazione cross-domain obbligatoria prima del deployment
 # 
 # 
 # 
-#  **Per massimizzazione prestazioni:**
 # 
-#  - CNN extended quando costo computazionale giustificabile
 # 
-#  - Architetture specializzate per domini complessi (FashionMNIST-like)
+#   I risultati validano una strategia di model selection pragmatica: **MLP ottimali per task semplici** (MNIST-like) dove l'overhead computazionale CNN non è giustificato, **CNN per task complessi** (FashionMNIST-like) dove il gain prestazionale compensa i costi. Il punto di break-even sembra situarsi quando la complessità visiva richiede invarianze spaziali che solo architetture convoluzionali possono catturare efficacemente.
+
+# %% [markdown]
+#   ## Conclusioni Generali del Progetto
 # 
-#  - Data augmentation sistematica per robustezza operativa
 # 
+# 
+# 
+# 
+# 
+# 
+#   ### Riepilogo dei risultati principali
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Punto A - Analisi Iperparametri:**
+# 
+# 
+# 
+#   - Identificate architetture ottimali: **MLP(250n_1S_lr0.001)** con **98.10%** e **CNN(extended_lr0.001)** con **98.85%**
+# 
+# 
+# 
+#   - Learning rate critico: range ottimale **0.001-0.01**, collasso catastrofico a **0.1** (drop a 86.1%)
+# 
+# 
+# 
+#   - Profondità controproducente: **1 strato supera 2 strati** di +2.2 punti su MNIST per overfitting control
+# 
+# 
+# 
+#   - Efficienza dominata da MLP: rapporto **12.4x** favorevole per accuratezza/tempo vs CNN
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Punto B - Cifre difficili:**
+# 
+# 
+# 
+#   - Gerarchia difficoltà: **8(2.8%), 2(2.5%), 5(2.4%)** vs **0(<1%), 1(<1%)** con pattern morfologici giustificati
+# 
+# 
+# 
+#   - Pattern confusione top: **4→9, 7→2, 8→3** riflettono similitudini strutturali genuine
+# 
+# 
+# 
+#   - Calibrazione confidenza eccellente: correlazione **r=0.774** per quality control automatico
+# 
+# 
+# 
+#   - **190 errori totali** su 10K (1.90%) con distribuzione controllata e concentrata
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Punto C - Robustezza al rumore:**
+# 
+# 
+# 
+#   - Soglie operative: **σ≤0.15(>95%), σ≤0.20(>90%), σ≤0.35(>80%)** per deployment stratificato
+# 
+# 
+# 
+#   - Degradazione controllata: tasso **1.03 acc/σ** senza collasso catastrofico
+# 
+# 
+# 
+#   - Vulnerabilità classe-specifiche: **cifra 1 più vulnerabile (+0.970), cifra 5 più robusta (+0.160)**
+# 
+# 
+# 
+#   - **AUC robustezza 0.366** quantifica resilienza globale del modello
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Punto D - Riduzione dati:**
+# 
+# 
+# 
+#   - Robustezza a scarsità: **10% dati → 94.3% accuratezza** (-3.8 punti con speedup 9.7x)
+# 
+# 
+# 
+#   - Scaling quasi-lineare con efficiency massima per dataset ridotti (**2.83 acc/s** con 1% vs **0.031** con 100%)
+# 
+# 
+# 
+#   - Overfitting paradossalmente controllato con dati limitati grazie a regolarizzazione intrinseca
+# 
+# 
+# 
+#   - Soglie operative: **25%(>96%), 10%(>94%), 5%(>91%)** per bilanciamento prestazioni-risorse
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Punto E - Training con rumore:**
+# 
+# 
+# 
+#   - Data augmentation efficace: **σ=0.25 ottimale** con **+9.3% AUC** improvement vs baseline clean
+# 
+# 
+# 
+#   - Range efficace **σ=0.15-0.30** per regolarizzazione senza degradazione baseline significativa
+# 
+# 
+# 
+#   - Benefici concentrati su test noise moderato: **σ=0.2 (+0.070), σ=0.3 (+0.149)** improvement
+# 
+# 
+# 
+#   - Strategia deployment robusto **costo-zero** senza modifiche architettoniche
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Punto Bonus - Confronto Architetturale:**
+# 
+# 
+# 
+#   - **Amplificazione 6x vantaggio CNN** su complexity elevata: MNIST(+0.7%) → FashionMNIST(+4.7%)
+# 
+# 
+# 
+#   - CNN più robusta a complessità: drop **8.4 punti** vs **10.0 punti MLP** su FashionMNIST
+# 
+# 
+# 
+#   - **Riduzione 421 errori (-39%)** CNN vs MLP su FashionMNIST con miglioramento operativo critico
+# 
+# 
+# 
+#   - Validazione model selection: **MLP per task semplici, CNN per complexity elevata**
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   ### Insights metodologici trasversali fondamentali
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Principio di Parsimonia Architettonica:**
+# 
+# 
+# 
+#   La ricerca sistematica conferma che per task visivi semplici come MNIST, **architetture snelle e ben calibrate superano configurazioni complesse**. Il learning rate emerge come iperparametro più critico, mentre profondità aggiuntiva introduce overfitting senza benefici. Questo validata il principio che complexity should match task intrinsic difficulty.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Robustezza Intrinseca e Generalizzazione:**
+# 
+# 
+# 
+#   I modelli dimostrano **resilienza intrinseca** a condizioni avverse (rumore, dati limitati) quando l'architettura è appropriata al task. La data augmentation con rumore controllato fornisce miglioramenti significativi "gratuiti" senza costi architettonali, evidenziando l'importanza di **regolarizzazione intelligente** vs brute-force complexity.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Trade-off Efficiency-Performance Ottimizzabile:**
+# 
+# 
+# 
+#   Il rapporto accuratezza-tempo rivela che per molte applicazioni pratiche, **configurazioni moderate offrono optimal value**: MLP(100, lr=0.01) raggiunge 97.3% in <10 secondi, ideale per prototipazione. Questo dimostra che **deployment pragmatico** spesso non richiede architetture state-of-the-art.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Auto-Calibrazione e Reliability Engineering:**
+# 
+# 
+# 
+#   I modelli mostrano **eccellente autoconsapevolezza** attraverso calibrazione delle confidenze, fornendo meccanismi naturali di quality control per deployment critico. Soglie confidence-based permettono **escalation automatica** senza overhead computazionale.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   ### Raccomandazioni strategiche per applicazioni reali
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Per sviluppo rapido e prototipazione:**
+# 
+# 
+# 
+#   - **MLP(100, lr=0.01)** per iterazione veloce e proof-of-concept con >97% performance
+# 
+# 
+# 
+#   - **Dataset 10-25%** per validazione iniziale mantenendo >94% prestazioni con speedup massicci
+# 
+# 
+# 
+#   - **Training noise σ=0.25** per robustezza immediata e regolarizzazione automatica
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Per deployment critico e production:**
+# 
+# 
+# 
+#   - **MLP(250, lr=0.001)** per maximum bilanciamento prestazioni-efficienza su task semplici
+# 
+# 
+# 
+#   - **Soglie confidence <0.80** per escalation manuale, **>0.95** per full automation
+# 
+# 
+# 
+#   - **Validazione cross-domain obbligatoria** prima del deployment per robustezza garantita
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   **Per massimizzazione prestazioni su task complessi:**
+# 
+# 
+# 
+#   - **CNN extended** quando task complexity giustifica overhead computazionale significativo
+# 
+# 
+# 
+#   - **Architecture selection data-driven**: complexity matching basato su empirical validation
+# 
+# 
+# 
+#   - **Data augmentation sistematica** per robustezza operativa in ambienti variabili
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   ### Contributo metodologico e direzioni future
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Questo studio dimostra l'importanza di **systematic empirical validation** per AI deployment decisions. La metodologia di confronto sistematico tra architetture, combined with pragmatic efficiency analysis, fornisce un framework replicabile per **evidence-based model selection** in contesti applicativi reali.
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   Le direzioni future includono estensione a **ensemble methods** per error reduction oltre i single-model limits, **neural architecture search** per automatic optimization, e **uncertainty quantification** per deployment safety in critical applications.
 
 
