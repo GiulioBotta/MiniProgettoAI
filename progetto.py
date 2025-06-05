@@ -131,6 +131,87 @@ print(f"Dataset caricato: {x_tr.shape[0]} esempi di training, {x_te.shape[0]} es
 # 
 # 
 #  Analizziamo sistematicamente come variano le prestazioni dei modelli MLP e CNN al variare degli iperparametri chiave. Confronteremo 18 configurazioni MLP e 6 configurazioni CNN per un totale di 24 esperimenti mirati.
+# 
+#  Confronteremo 18 configurazioni MLP e 6 configurazioni CNN per un totale di 24 esperimenti mirati.
+
+# %% [markdown]
+#  ### Configurazione esperimenti sistematici
+# 
+# 
+# 
+#  ***MLP (18 esperimenti):***
+# 
+#  - **Neuroni per strato**: *50, 100, 250* per testare la copertura da reti piccole a medio-grandi
+# 
+#  - **Numero layers**: *1 vs 2* strati nascosti per fare il confronto profondità vs larghezza
+# 
+#  - **Learning rate**: *0.001, 0.01, 0.1*
+# 
+# 
+# 
+#  ***CNN (6 esperimenti):***
+# 
+#  - **Filtri**: *32*, standard per MNIST, computazionalmente efficiente
+# 
+#  - **Architettura**: *baseline vs extended* per fare il confronto sulla complessità
+# 
+#  - **Learning rate**: *0.001, 0.01, 0.1*
+# 
+# 
+# 
+#  Per entrambi i modelli si è scelto di utilizzare il solver **Adam**, ormai standard e più performante di SDG.
+# 
+#  Si è volutamente scelto di eseguire meno esperimenti sulle CNN in quanto richiedono tempi molto più lunghi di training rispetto alle MLP.
+# 
+# 
+# 
+#  #### Scelta dei parametri di training
+# 
+# 
+# 
+#  ***MLP:***
+# 
+#  - *max_iter = 100* è sufficiente per convergenza su MNIST basato su cifre manoscritte.
+# 
+#  - *early_stopping = True*, previene l'overfitting essenziale quando sono presenti molti parametri.
+# 
+#  - *validation_fraction = 0.1*, split standard 90/10.
+# 
+#  - *tol = 0.001* è una precisione ragionevole per classificazione.
+# 
+#  - *n_iter_no_change = 10* è un livello di pazienza adeguata per permettere oscillazioni temporanee.
+# 
+# 
+# 
+#  ***CNN:***
+# 
+#  - *epochs = 20* valore di compromesso per bilanciare velocità e convergenza, il valore è più basso delle MLP perchè le CNN tipicamente convergono più velocemente.
+# 
+#  - *batch_size = 128*, trade-off memoria/velocità ottimale per dataset size.
+# 
+#  - *validation_split = 0.1*, coerente con le scelte di MLP.
+# 
+#  - *patience = 5*, le CNN sono meno soggette a oscillazioni quindi è stato scelto un livello di pazienza minore.
+# 
+#  - *min_delta = 0.001*, scelta la stessa precisione degli MLP per comparabilità diretta.
+# 
+# 
+# 
+#  Questa configurazione permette un confronto sistematico e bilanciato tra i due tipi di architetture.
+
+# %% [markdown]
+#  #### Funzioni helper per stampe risultati
+
+# %%
+def stampa_header_esperimento(num_esp, totale, tipo_modello, config):
+    print(f"\n[{num_esp:2d}/{totale}] {tipo_modello}: {config}")
+    print("-" * 50)
+
+def stampa_risultati_esperimento(risultati):
+    print(f"Accuracy Training: {risultati['train_accuracy']:.4f} | Accuracy Test: {risultati['test_accuracy']:.4f}")
+    print(f"Tempo: {risultati['training_time']:6.1f}s | Iterazioni: {risultati['iterations']:3d}")
+    print(f"Overfitting: {risultati['overfitting']:+.4f}")
+
 
 # %% [markdown]
 #  ### Esperimenti sistematici MLP e CNN
